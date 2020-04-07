@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HelloWorld</title>
+    <script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://cdn.bootcss.com/echarts/4.7.0/echarts.min.js"></script>
+    <style>
+        body,
+        html {
+            background-color: whitesmoke;
+            width: 100%;
+            height: 100%;
+            margin: 0%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="containerstate" style="width: 50%; height: 60%;"></div>
+    <script>
+        var base = Date.now();
+        var oneDay = 24 * 3600 * 1000;
+        var date = [];
+        var data = [];
+        var option = {
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: date
+            },
+            yAxis: {
+                boundaryGap: false,
+                type: 'value'
+            },
+            series: [
+                {
+                    name: '内存占用率',
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'none',
+                    stack: 'a',
+                    areaStyle: {
+                        normal: {}
+                    },
+                    data: data
+                }
+            ]
+        };
+        var myChart = echarts.init(document.getElementById("containerstate"));
+        myChart.setOption(option);
+        myChart.showLoading();
+
+        var jobId = null;
+        // 从 /memdata 获取数据
+        function getData(onsuccess, onfail) {
+            $.get("/memdata").then((data, status, xhr) => {
+                console.log("status: " + status + ", data: " + data);
+                if (status == "success") {
+                    let res = JSON.parse(data);
+                    if (res["status"] == 1)
+                        onsuccess(res["data"]);
+                    else onfail();
+                } else onfail();
+            });
+        }
+        // 每个一段时间获取数据
+        function intervalJob() {
+            let onsuccess = (state) => {
+                myChart.hideLoading();
+                date.push(state["date"].substr(5, 14)), data.push(state["data"]);
+                myChart.setOption({
+                    xAxis: { data: date },
+                    series: [{
+                        name: '内存占用率',
+                        data: data
+                    }]
+                });
+            };
+            getData(onsuccess, () => {
+                if (jobId != null) clearInterval(jobId);
+                alert("get /memdata failed");
+            });
+        }
+        jobId = setInterval(intervalJob, 1000);
+    </script>
+</body>
+
+</html>
