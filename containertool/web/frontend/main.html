@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>容器管理平台</title>
+    <script src="https://cdn.bootcss.com/echarts/4.7.0/echarts-en.common.js"></script>
+    <style>
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+            margin: 0px;
+            background-color: steelblue;
+            font-family: '等线', Consolas;
+            font-size: large;
+        }
+
+        .typepane {
+            box-shadow: gray 1px 1px 5px;
+            min-height: 300px;
+            min-width: 20%;
+            background-color: whitesmoke;
+            margin: 10px;
+            display: flex;
+            flex-direction: row;
+        }
+
+        .pane {
+            width: 46%;
+            margin: 10px;
+        }
+
+        .restitle {
+            padding: 10px;
+            font-weight: bold;
+            font-size: x-large;
+        }
+
+        .menu {
+            float: left;
+            height: 100%;
+            width: 13%;
+        }
+
+        .menuitem {
+            width: 100%;
+            padding: 15px;
+            margin-top: 2px;
+            padding-left: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            color: rgb(223, 222, 222);
+        }
+
+        .menuitem:hover {
+            background-color: rgb(88, 155, 209)
+        }
+
+        .reslist {
+            width: 100%;
+        }
+
+        resli {
+            display: block;
+            width: 97%;
+            padding: 1.5%;
+            border-bottom: solid 0.1px lightgray;
+            cursor: pointer;
+        }
+
+        resli:hover {
+            background-color: rgb(219, 219, 219);
+        }
+    </style>
+    <script>
+        var base = +new Date(2014, 9, 3);
+        var oneDay = 24 * 3600 * 1000;
+        var date = [];
+
+        var data = [Math.random() * 150];
+        var now = new Date(base);
+
+        function addData(shift) {
+            now = [now.getFullYear(), now.getMonth() + 1, now.getDate()].join('/');
+            date.push(now);
+            data.push((Math.random() - 0.4) * 10 + data[data.length - 1]);
+
+            if (shift) {
+                date.shift();
+                data.shift();
+            }
+
+            now = new Date(+new Date(now) + oneDay);
+        }
+
+        for (var i = 1; i < 100; i++) {
+            addData();
+        }
+        var myChart, memChart;
+
+        function makeOption(title) {
+            return {
+                title: { text: title },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: date
+                },
+                yAxis: {
+                    boundaryGap: [0, '50%'],
+                    type: 'value'
+                },
+                series: [{
+                    name: '成交',
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'none',
+                    stack: 'a',
+                    areaStyle: { normal: {} },
+                    data: data
+                }]
+            };
+        }
+        window.onload = () => {
+            myChart = echarts.init(document.getElementById("cpu"));
+            memChart = echarts.init(document.getElementById("mem"));
+            myChart.setOption(makeOption("CPU利用率")), memChart.setOption(makeOption("内存利用率"));
+            setInterval(function () {
+                addData(true);
+                myChart.setOption({
+                    xAxis: {
+                        data: date
+                    },
+                    series: [{
+                        name: '成交',
+                        data: data
+                    }]
+                });
+                memChart.setOption({
+                    xAxis: {
+                        data: date
+                    },
+                    series: [{
+                        name: '成交',
+                        data: data
+                    }]
+                });
+            }, 500);
+        };
+    </script>
+</head>
+
+<body>
+    <div class="menu">
+        <div style="width:100%; 
+            height: 60px;padding-left: 25px;padding-top: 45px;font-size: xx-large;
+            word-wrap: break-word;
+            font-weight: bold;color: whitesmoke;">
+            微容器管理</div>
+        <div class="menuitem">系统管理</div>
+        <div class="menuitem">容器管理</div>
+        <div class="menuitem">镜像管理</div>
+    </div>
+    <div style="width: 87%;height: fit-content; 
+    background-color: whitesmoke;float: left;padding-top: 15px;">
+        <div class="restitle">系统运行状态</div>
+        <div class="typepane" id="sysres">
+            <div id="cpu" class="pane"></div>
+            <div id="mem" class="pane"></div>
+        </div>
+        <div class="restitle">容器</div>
+        <div class="typepane" id="containerres">
+            <div id="containerlist" class="reslist">
+                <resli>Tomcat9</resli>
+                <resli>Python3.6-stretch</resli>
+                <resli>Ubuntu19.04-bionic</resli>
+                <resli>Nginx-alpine</resli>
+            </div>
+        </div>
+        <div class="restitle">镜像</div>
+        <div class="typepane" id="imageres">
+            <div id="imagelist" class="reslist">
+                <resli>Tomcat8</resli>
+                <resli>Ubuntu19.04-bionic</resli>
+                <resli>Python3.6-stretch</resli>
+
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
