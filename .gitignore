@@ -1,5 +1,12 @@
 build/
-
 .vscode/
 
+build/
+lib/httplib.*
+lib/json.*
+
 foo*
+
+*.out
+*.obj
+*.o
