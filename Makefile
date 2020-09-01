@@ -2,7 +2,7 @@
 .PHONY: main clean
 
 main: main.o logger.o httplib.o
-	g++ -g -o main.out -D CPPHTTPLIB_OPENSSL_SUPPORT -lssl -lcrypto -lpthread main.o logger.o httplib.o
+	g++ -g -o main.out -D CPPHTTPLIB_OPENSSL_SUPPORT -lssl -lz -lcrypto -lpthread main.o logger.o httplib.o
 
 main.o: main.cpp pull.h
 	g++ -g -c -Wall -Ilib -o main.o main.cpp
