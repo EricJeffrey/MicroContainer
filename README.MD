@@ -34,9 +34,21 @@ OCI给出了镜像的[分发规范](https://github.com/opencontainers/distributi
 - manifest: `3a GET /v2/library/python/manifests/latest`，镜像的清单文件，包括镜像每一层的哈希，镜像的签名等，具体信息可以参考[OCI-image-spec](https://github.com/opencontainers/image-spec/blob/master/manifest.md#image-manifest) [docker-image-manifest-v2-1](https://github.com/docker/distribution/blob/5cb406d511b7b9163bff9b6439072e4892e5ae3b/docs/spec/manifest-v2-1.md) [docker-image-manifest-v2-2](https://github.com/docker/distribution/blob/5cb406d511b7b9163bff9b6439072e4892e5ae3b/docs/spec/manifest-v2-2.md)。获取时可以指定`Accept`首部，表面需要的manifest版本类型。
 - blobs: `2a GET /v2/library/python/blobs/sha256:xxxx`，镜像每一层的内容，一般为`.tar.gz`文件，manifest中会指出每一层的哈希
 
-实现上，忽略manifest版本兼容性，假设`pull name tag`，步骤如下
+对于`v2-schema1`的Manifest，其中的`history[0]["v1Compatibility]`即是镜像的配置文件。
+
+对于`v2-schema2`的Manifest，可以使用其中的`config.digest`作为ref，通过`/v2/name/blobs/ref`获得镜像的配置文件，但若返回404，则仍需通过上述`schema1`的manifest获得。
+
+实现上，忽略manifest版本兼容性，假设`pull name:tag`，步骤如下
 
 1. `GET registry/v2/` 检查registry是否可以访问
-2. `GET registry/v2/library/name/manifests/tag` 获取清单文件，默认为[manifest-v2-1](https://github.com/docker/distribution/blob/5cb406d511b7b9163bff9b6439072e4892e5ae3b/docs/spec/manifest-v2-1.md)
-3. 对于清单文件中`fsLayers`内每一个不同的`blobSum`，获取其内容，并存储为`{blobSum}.tar.gz`
-4. 使用清单文件的`history`项中的配置信息保存镜像的清单
+2. `GET registry/v2/library/name/manifests/tag` 获取清单文件
+   1. 对于`schema1`的清单文件
+      1. `fsLayers`中的`blobSum`为镜像压缩包，通过`/v2/name/blobs/blobSum`获取
+      2. `history[0][v1Compatibility]`为镜像配置文件
+      3. 哈希可能需要通过获得的算配置文件手动计算
+   2. 对于`schema2`的清单文件
+      1. `Layers`为每一层的哈希，通过此哈希获得该层的压缩包
+      2. `config`中包含镜像配置信息的哈希，通过`/v2/name/blobs/ref`获得镜像配置
+         1. 若无法获得配置则使用`schema1`清单文件中的信息
+3. 获取压缩包
+4. 保存配置文件和清单

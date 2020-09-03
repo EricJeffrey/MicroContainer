@@ -2,8 +2,6 @@ build/
 .vscode/
 
 build/
-lib/httplib.*
-lib/json.*
 
 foo*
 bar*

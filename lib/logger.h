@@ -21,9 +21,6 @@ using std::mutex;
 using std::ofstream;
 using std::ostream;
 using std::string;
-using std::thread;
-using std::to_string;
-using std::unique_ptr;
 
 class Logger;
 string curTime();
@@ -35,7 +32,7 @@ private:
     static mutex loggerMutex;
 
     bool debugOn = false;
-    unique_ptr<ostream> out;
+    std::unique_ptr<ostream> out;
     // log into ostream, default [stderr]
     Logger(ostream &o = std::cerr) : out(&o) {}
     // log into [filePath] with append
@@ -59,19 +56,19 @@ public:
     static Logger *getInstance();
 
     void setDebug(bool dbgOn = false) { debugOn = dbgOn; }
-    void debug(initializer_list<string> strList) {
+    inline void debug(initializer_list<string> strList) {
         if (debugOn)
             logOut(strList, "DEBUG");
     }
-    void debug(const string &s) { debug({s}); }
-    void info(initializer_list<string> strList) { logOut(strList, "INFO"); }
-    void info(const string &s) { info({s}); }
-    void warn(initializer_list<string> strList) { logOut(strList, "WARN"); }
-    void warn(const string &s) { warn({s}); }
-    void error(initializer_list<string> strList) { logOut(strList, "ERROR"); }
-    void error(const string &s) { error({s}); }
-    void sysError(int tmpErrno, const string &s) {
-        logOut({s, "errno:", to_string(tmpErrno), strerror(tmpErrno)}, "SYS-ERROR");
+    inline void debug(const string &s) { debug({s}); }
+    inline void info(initializer_list<string> strList) { logOut(strList, "INFO"); }
+    inline void info(const string &s) { info({s}); }
+    inline void warn(initializer_list<string> strList) { logOut(strList, "WARN"); }
+    inline void warn(const string &s) { warn({s}); }
+    inline void error(initializer_list<string> strList) { logOut(strList, "ERROR"); }
+    inline void error(const string &s) { error({s}); }
+    inline void sysError(int tmpErrno, const string &s) {
+        logOut({s, "errno:", std::to_string(tmpErrno), strerror(tmpErrno)}, "SYS-ERROR");
     };
 };
 #endif // LOGGER_H

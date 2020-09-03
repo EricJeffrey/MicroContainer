@@ -1,5 +1,5 @@
 
-.PHONY: main clean
+.PHONY: main clean clean-build
 
 main: main.o logger.o httplib.o
 	g++ -g -o main.out -D CPPHTTPLIB_OPENSSL_SUPPORT -lssl -lz -lcrypto -lpthread main.o logger.o httplib.o
@@ -15,3 +15,9 @@ httplib.o: lib/httplib.cc lib/httplib.h
 
 clean:
 	rm -f *.o *.out
+	rm -rf build/images/*
+	rm -rf build/layers/*
+
+clean-build:
+	rm -rf build/images/*
+	rm -rf build/layers/*
