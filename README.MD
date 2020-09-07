@@ -6,6 +6,7 @@
  - [Logger](https://github.com/EricJeffrey/linux_learn/blob/master/effective_io_model/reactor_model/Logger.h)作为日志工具。
  - [nlohmann/json](https://github.com/nlohmann/json)作为JSON处理工具
 
+编译选项: `-D CPPHTTPLIB_OPENSSL_SUPPORT -lssl -lz -lcrypto -lpthread -larchive`
 
 ## 功能分析与实现
 
@@ -50,5 +51,17 @@ OCI给出了镜像的[分发规范](https://github.com/opencontainers/distributi
       1. `Layers`为每一层的哈希，通过此哈希获得该层的压缩包
       2. `config`中包含镜像配置信息的哈希，通过`/v2/name/blobs/ref`获得镜像配置
          1. 若无法获得配置则使用`schema1`清单文件中的信息
-3. 获取压缩包
+3. 获取并提取每一层的压缩包
 4. 保存配置文件和清单
+
+### 创建容器
+
+解压镜像
+
+- 存储已pull镜像信息
+- 解析容器配置信息
+- 挂载容器目录
+- 写入配置文件
+- 使用crun启动容器
+
+使用overlay作为容器文件系统 - mount 

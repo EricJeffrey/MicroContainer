@@ -1,6 +1,7 @@
 #if !defined(LOGGER_H)
 #define LOGGER_H
 
+#include <iomanip>
 #include <cstring>
 #include <thread>
 #include <mutex>
@@ -13,62 +14,99 @@
 #include <ctime>
 #include <stdexcept>
 #include <exception>
+#include <any>
 
-using std::endl;
-using std::initializer_list;
 using std::lock_guard;
 using std::mutex;
 using std::ofstream;
 using std::ostream;
 using std::string;
+using std::unique_ptr;
 
 class Logger;
 string curTime();
-Logger *loggerInstance();
+unique_ptr<Logger> &loggerInstance();
 
 class Logger {
 private:
-    static Logger *loggerPtr;
+    static unique_ptr<Logger> loggerPtr2;
     static mutex loggerMutex;
 
-    bool debugOn = false;
-    std::unique_ptr<ostream> out;
+    std::ostream *out;
+
+    bool debugOn;
+    bool outputTime;
+    string separator;
+    string ending;
+    bool shouldBeDestroyed;
+
+    Logger(ostream *o, bool destroy = false)
+        : out(o), debugOn(false), outputTime(true), separator(" "), ending("\n"),
+          shouldBeDestroyed(destroy) {}
     // log into ostream, default [stderr]
-    Logger(ostream &o = std::cerr) : out(&o) {}
+    Logger(ostream &o) : Logger(&o) {}
     // log into [filePath] with append
-    Logger(const string &filePath) : out(new ofstream(filePath, std::ios::out)) {}
-    ~Logger() {}
-    // sync output
-    void logOut(initializer_list<string> sli, const string &tag) {
-        lock_guard<mutex> lock(loggerMutex);
-        (*out) << curTime() << " " << tag << " ";
-        for (auto &&s : sli)
-            (*out) << s << " ";
-        (*out) << endl;
+    Logger(const string &filePath) : Logger(new ofstream(filePath, std::ios::out), true) {}
+
+    template <typename T> void logout(const T &t) {
+        (*out) << t;
+        if (!ending.empty())
+            (*out) << ending;
+    }
+
+    template <typename T, typename... Args> void logout(const T &t, const Args &... args) {
+        (*out) << t;
+        if (!separator.empty())
+            (*out) << separator;
+        logout(args...);
     }
 
 public:
     void operator=(const Logger &) = delete;
     Logger(const Logger &) = delete;
-
-    static Logger *init(ostream &o);
-    static Logger *init(const string &fpath);
-    static Logger *getInstance();
-
-    void setDebug(bool dbgOn = false) { debugOn = dbgOn; }
-    inline void debug(initializer_list<string> strList) {
-        if (debugOn)
-            logOut(strList, "DEBUG");
+    ~Logger() {
+        if (shouldBeDestroyed)
+            delete out;
     }
-    inline void debug(const string &s) { debug({s}); }
-    inline void info(initializer_list<string> strList) { logOut(strList, "INFO"); }
-    inline void info(const string &s) { info({s}); }
-    inline void warn(initializer_list<string> strList) { logOut(strList, "WARN"); }
-    inline void warn(const string &s) { warn({s}); }
-    inline void error(initializer_list<string> strList) { logOut(strList, "ERROR"); }
-    inline void error(const string &s) { error({s}); }
-    inline void sysError(int tmpErrno, const string &s) {
-        logOut({s, "errno:", std::to_string(tmpErrno), strerror(tmpErrno)}, "SYS-ERROR");
+
+    static unique_ptr<Logger> &init(ostream &o);
+    static unique_ptr<Logger> &init(const string &fpath);
+    static unique_ptr<Logger> &getInstance();
+
+    void setDebug(bool on = false) { debugOn = on; }
+
+    void setPrecision(int n) { (*out) << std::fixed << std::setprecision(n); }
+
+    void setSeparator(const string &sep = " ") { this->separator = sep; }
+
+    void setEnding(const string &ending = "\n") { this->ending = ending; }
+
+    template <typename... Args> void debug(const Args &... args) {
+        const string tag("DEBUG");
+        if (debugOn && outputTime)
+            logout(curTime(), tag, args...);
+        else if (debugOn && !outputTime)
+            logout(tag, args...);
+    }
+
+    template <typename... Args> void info(const Args &... args) {
+        const string tag("INFO");
+        outputTime ? logout(curTime(), tag, args...) : logout(tag, args...);
+    }
+    template <typename... Args> void warn(const Args &... args) {
+        const string tag("WARN");
+        outputTime ? logout(curTime(), tag, args...) : logout(tag, args...);
+    }
+    template <typename... Args> void error(const Args &... args) {
+        const string tag("ERROR");
+        outputTime ? logout(curTime(), tag, args...) : logout(tag, args...);
+    }
+    template <typename... Args> void sysError(int tmpErrno, const Args &... args) {
+        const string tag("SYS-ERROR");
+        outputTime ? logout(curTime(), tag, args..., "errno:", tmpErrno, strerror(tmpErrno))
+                   : logout(tag, args..., "errno:", tmpErrno, strerror(tmpErrno));
     };
+    template <typename... Args> void raw(const Args &... args) { logout(args...); }
 };
+
 #endif // LOGGER_H

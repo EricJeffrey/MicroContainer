@@ -16,33 +16,33 @@ string curTime() {
         memset(buf + TARGET_SZ, 0, BUF_SZ - TARGET_SZ);
     return buf;
 }
-Logger *loggerInstance() { return Logger::getInstance(); }
+unique_ptr<Logger>& loggerInstance() { return Logger::getInstance(); }
 
-Logger *Logger::init(ostream &o) {
+unique_ptr<Logger>& Logger::init(ostream &o) {
     using std::lock_guard;
-    if (loggerPtr == nullptr) {
+    if (loggerPtr2 == nullptr) {
         lock_guard<mutex> guard(loggerMutex);
-        if (loggerPtr == nullptr)
-            loggerPtr = new Logger(o);
+        if (loggerPtr2 == nullptr)
+            loggerPtr2.reset(new Logger(o));
     }
-    return loggerPtr;
+    return loggerPtr2;
 }
-Logger *Logger::init(const string &fpath) {
+unique_ptr<Logger>& Logger::init(const string &fpath) {
     using std::lock_guard;
-    if (loggerPtr == nullptr) {
+    if (loggerPtr2 == nullptr) {
         lock_guard<mutex> guard(loggerMutex);
-        if (loggerPtr == nullptr)
-            loggerPtr = new Logger(fpath);
+        if (loggerPtr2 == nullptr)
+            loggerPtr2.reset(new Logger(fpath));
     }
-    return loggerPtr;
+    return loggerPtr2;
 }
-Logger *Logger::getInstance() {
-    if (loggerPtr == nullptr)
+unique_ptr<Logger>& Logger::getInstance() {
+    if (loggerPtr2 == nullptr)
         throw std::runtime_error("Logger is not initialized, call Logger::init first");
-    return loggerPtr;
+    return loggerPtr2;
 }
 
-Logger *Logger::loggerPtr;
+unique_ptr<Logger> Logger::loggerPtr2;
 mutex Logger::loggerMutex;
 
 #endif // LOGGER_CPP
