@@ -1,28 +1,29 @@
+CCFLAGS=-g -c -Wall -Ilib
+LLIB=-lssl -lz -lcrypto -lpthread -larchive
+CCMACRO=-D CPPHTTPLIB_OPENSSL_SUPPORT
 
 .PHONY: main clean clean-build
 
 main: main.o logger.o httplib.o pull.o extract.o
-	g++ -g -o main.out main.o logger.o httplib.o pull.o extract.o -D CPPHTTPLIB_OPENSSL_SUPPORT -lssl -lz -lcrypto -lpthread -larchive
+	g++ -g -o main.out main.o logger.o httplib.o pull.o extract.o $(CCMACRO) $(LLIB)
 
 main.o: main.cpp pull.h
-	g++ -g -c -Wall -Ilib -o main.o main.cpp
+	g++ $(CCFLAGS) -o main.o main.cpp
 
 logger.o: lib/logger.cpp lib/logger.h
-	g++ -g -c -Wall -Ilib -o logger.o lib/logger.cpp
+	g++ $(CCFLAGS) -o logger.o lib/logger.cpp
 
 httplib.o: lib/httplib.cc lib/httplib.h
-	g++ -g -c -Wall -D CPPHTTPLIB_OPENSSL_SUPPORT -Ilib -o httplib.o lib/httplib.cc
+	g++ $(CCFLAGS) $(CCMACRO) -o httplib.o lib/httplib.cc
 
 pull.o: pull.cpp pull.h
-	g++ -g -c -Wall -D CPPHTTPLIB_OPENSSL_SUPPORT -Ilib -o pull.o pull.cpp
+	g++ $(CCFLAGS) $(CCMACRO) -o pull.o pull.cpp
 
 extract.o: extract.cpp extract.h
-	g++ -g -c -Wall -Ilib -o extract.o extract.cpp
+	g++ $(CCFLAGS) -o extract.o extract.cpp
 
 clean:
 	rm -f *.o *.out
-	rm -rf build/images/*
-	rm -rf build/layers/*
 
 clean-build:
 	rm -rf build/images/*

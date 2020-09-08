@@ -216,10 +216,15 @@ int pull(const string &imgName, const string &tag, const string &regAddr) {
         try {
             std::cerr << (blobCntK) << "/" << blobSetSz << " " << blobSum.substr(7, 16) << "...";
             auto extractRet = extract(filePath, dstDirPath);
-            std::cerr << "done\n";
             ++blobCntK;
-            if (extractRet.first == -2)
-                loggerInstance()->warn("extract returned with warn:", extractRet.second);
+            if (extractRet.first == -1) {
+                loggerInstance()->error("call to extract failed:", extractRet.second);
+                return -1;
+            } else {
+                std::cerr << "done\n";
+                if (extractRet.first == -2)
+                    loggerInstance()->warn("extract returned with warn:", extractRet.second);
+            }
         } catch (const std::exception &e) {
             loggerInstance()->error("extract layer failed:", e.what());
             return -1;

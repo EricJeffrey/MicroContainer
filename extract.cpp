@@ -74,8 +74,26 @@ std::pair<int, string> extract(const string &filePath, const string &dirPath) {
     if (ret != ARCHIVE_OK)
         throw runtime_error(string("call to archive_read_open_filename failed:") +
                             archive_error_string(src));
+
     std::pair<int, string> res(0, "");
     auto setResWarn = [&](const string &msg) { res.first = -2, res.second += msg + ", "; };
+    // change to destination dir - check & make & change
+    const char *cwd = getcwd(nullptr, 0);
+    if (cwd == nullptr)
+        return std::make_pair(-1, string("call to getcwd failed:") + strerror(errno));
+    {
+        struct stat st = {0};
+        if (stat(dirPath.c_str(), &st) == -1 || !S_ISDIR(st.st_mode)) {
+            // create dir
+            if (mkdir(dirPath.c_str(), 0700) == -1)
+                return std::make_pair(-1, string("call to mkdir failed:") + strerror(errno));
+        }
+    }
+    ret = chdir(dirPath.c_str());
+    if (ret == -1) {
+        return std::make_pair(-1, string("call to chdir failed:") + strerror(errno));
+    }
+
     for (;;) {
         ret = archive_read_next_header(src, &entry);
         if (ret == ARCHIVE_EOF)
@@ -89,9 +107,6 @@ std::pair<int, string> extract(const string &filePath, const string &dirPath) {
         const char *pathName = archive_entry_pathname(entry);
         if (pathName == nullptr)
             throw runtime_error("call to archive_entry_pathname failed");
-
-        const string fullPathName = dirPath + archive_entry_pathname(entry);
-        archive_entry_set_pathname(entry, fullPathName.c_str());
 
         ret = archive_write_header(dst, entry);
         if (ret < ARCHIVE_OK)
@@ -109,6 +124,9 @@ std::pair<int, string> extract(const string &filePath, const string &dirPath) {
         else if (ret < ARCHIVE_OK)
             setResWarn(archive_error_string(dst));
     }
+    ret = chdir(cwd);
+    if (ret == -1)
+        return std::make_pair(-1, string("call to chdir failed:") + strerror(errno));
     return res;
 }
 
