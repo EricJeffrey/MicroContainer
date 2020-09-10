@@ -9,3 +9,5 @@ bar*
 *.out
 *.obj
 *.o
+
+microc

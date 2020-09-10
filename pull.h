@@ -16,6 +16,7 @@
 #include <vector>
 
 const string imageDirPath = "./build/images/";
+const string imageRepoFileName = "repo.json";
 const string layerDirPath = "./build/layers/";
 const string overlayDirPath = "./build/overlay/";
 
@@ -61,6 +62,7 @@ struct ImageData {
 string getRegistryPath(RegistryEndPoint endPoint, std::vector<string> args = {});
 
 int pull(const string &imgNameTag, const string &regAddr = defaultRegAddr);
+
 int pull(const string &imgName, const string &tag, const string &regAddr);
 
 // check connection, return <http-status-code, client.error()>

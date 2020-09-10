@@ -5,7 +5,7 @@ CCMACRO=-D CPPHTTPLIB_OPENSSL_SUPPORT
 .PHONY: main clean clean-build
 
 main: main.o logger.o httplib.o pull.o extract.o
-	g++ -g -o main.out main.o logger.o httplib.o pull.o extract.o $(CCMACRO) $(LLIB)
+	g++ -g -o microc main.o logger.o httplib.o pull.o extract.o $(CCMACRO) $(LLIB)
 
 main.o: main.cpp pull.h
 	g++ $(CCFLAGS) -o main.o main.cpp
@@ -16,7 +16,7 @@ logger.o: lib/logger.cpp lib/logger.h
 httplib.o: lib/httplib.cc lib/httplib.h
 	g++ $(CCFLAGS) $(CCMACRO) -o httplib.o lib/httplib.cc
 
-pull.o: pull.cpp pull.h
+pull.o: pull.cpp pull.h imagerepo.h
 	g++ $(CCFLAGS) $(CCMACRO) -o pull.o pull.cpp
 
 extract.o: extract.cpp extract.h

@@ -3,6 +3,9 @@
 
 #include "pull.h"
 #include "extract.h"
+#include "imagerepo.h"
+
+#include <fstream>
 
 string sha256_string(const char *str, size_t len) {
     char output_buffer[65];
@@ -35,18 +38,6 @@ string getRegistryPath(RegistryEndPoint endPoint, std::vector<string> args) {
             break;
     }
     return ss.str();
-}
-
-int pull(const string &imgNameTag, const string &regAddr) {
-    string imgName, tag;
-    const size_t colonPos = imgNameTag.find(':');
-    if (colonPos != imgNameTag.npos) {
-        imgName = imgNameTag.substr(0, colonPos);
-        tag = imgNameTag.substr(colonPos + 1);
-    } else {
-        imgName = imgNameTag, tag = "latest";
-    }
-    return pull(imgName, tag, regAddr);
 }
 
 // check connection, return <http-status-code, client.error()>
@@ -151,9 +142,45 @@ std::pair<int, nlohmann::json> fetchV2Config(httplib::Client &client, const Imag
     }
 }
 
+int pull(const string &imgNameTag, const string &regAddr) {
+    string imgName, tag;
+    const size_t colonPos = imgNameTag.find(':');
+    if (colonPos != imgNameTag.npos) {
+        imgName = imgNameTag.substr(0, colonPos);
+        tag = imgNameTag.substr(colonPos + 1);
+    } else {
+        imgName = imgNameTag, tag = "latest";
+    }
+    return pull(imgName, tag, regAddr);
+}
+
 // No throw
 int pull(const string &imgName, const string &tag, const string &regAddr) {
     using std::get;
+
+    // check local existence
+    loggerInstance()->info("Checking", imgName + ":" + tag, "locally");
+    ImageRepoInfo repoInfo;
+    try {
+        // may need lock file first
+        std::ifstream repoFStream(imageDirPath + imageRepoFileName);
+        string repoJsonStr((std::istreambuf_iterator<char>(repoFStream)),
+                           std::istreambuf_iterator<char>());
+        repoFStream.close();
+        if (repoJsonStr.empty())
+            repoJsonStr = "{}";
+        repoInfo = ImageRepoInfo::buildFromJson(nlohmann::json::parse(repoJsonStr));
+    } catch (const std::exception &e) {
+        loggerInstance()->error("Cannot read local repo info:", e.what());
+        return -1;
+    }
+    if (repoInfo.contains(imgName, tag)) {
+        // find locally
+        loggerInstance()->info("Find", imgName + ":" + tag, "locally, exiting");
+        return 0;
+    }
+
+    // fetch from registry
     loggerInstance()->info("Fetching image", imgName + ":" + tag);
     httplib::Client client(regAddr.c_str());
     client.set_read_timeout(readTimeoutInSec);
@@ -272,8 +299,15 @@ int pull(const string &imgName, const string &tag, const string &regAddr) {
         loggerInstance()->error("Write image configuration failed:", e.what());
         return -1;
     }
-
-    // todo store all images info
+    // store image info
+    repoInfo.addImage(imgName, tag, imageData.configBlobDigest);
+    try {
+        std::ofstream repoFStream(imageDirPath + imageRepoFileName);
+        repoFStream << repoInfo.toJsonString();
+        repoFStream.close();
+    } catch (const std::exception &e) {
+        loggerInstance()->error("Write image repo info failed:", e.what());
+    }
 
     loggerInstance()->info("Image", imgName + ":" + tag,
                            "stored at:", imageDirPath + confDigNoPrefix);

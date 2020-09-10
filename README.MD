@@ -5,6 +5,7 @@
  - [httplib.h](https://github.com/yhirose/cpp-httplib)作为http客户端
  - [Logger](https://github.com/EricJeffrey/linux_learn/blob/master/effective_io_model/reactor_model/Logger.h)作为日志工具。
  - [nlohmann/json](https://github.com/nlohmann/json)作为JSON处理工具
+ - [libarchive](https://github.com/libarchive/libarchive/)提取镜像内容
 
 编译选项: `-D CPPHTTPLIB_OPENSSL_SUPPORT -lssl -lz -lcrypto -lpthread -larchive`
 
@@ -58,6 +59,7 @@ OCI给出了镜像的[分发规范](https://github.com/opencontainers/distributi
 
 解压镜像
 
+- 可以通过overlay方式挂载多个文件夹构造容器根文件系统目录
 - 存储已pull镜像信息
 - 解析容器配置信息
 - 挂载容器目录
