@@ -41,14 +41,13 @@ string getRegistryPath(RegistryEndPoint endPoint, std::vector<string> args) {
 }
 
 // check connection, return <http-status-code, client.error()>
-std::pair<int, bool> checkV2Conn(httplib::Client &client) {
+PairIntBool checkV2Conn(httplib::Client &client) {
     auto resp = client.Get(getRegistryPath(RegistryEndPoint::CHECK).c_str());
     return std::make_pair(resp->status, resp.error());
 }
 
 // return <manifest, status-code, error>
-std::tuple<string, int, bool> getManifest(httplib::Client &client, const string &imgName,
-                                          const string &tag) {
+TupStrIntBool getManifest(httplib::Client &client, const string &imgName, const string &tag) {
     httplib::Headers headers(
         {std::make_pair("Accept", "application/vnd.docker.distribution.manifest.v2+json")});
     auto resp = client.Get(
@@ -91,8 +90,8 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
 }
 
 // return <errCode, configJson>, log on process
-std::pair<int, nlohmann::json> fetchV2Config(httplib::Client &client, const ImageData &imageData,
-                                             const string &imgName, const string &tag) {
+PairIntJson fetchV2Config(httplib::Client &client, const ImageData &imageData,
+                          const string &imgName, const string &tag) {
     using std::make_pair;
     auto errorPair = make_pair(-1, "");
     // get config directly

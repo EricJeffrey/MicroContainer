@@ -57,13 +57,23 @@ OCI给出了镜像的[分发规范](https://github.com/opencontainers/distributi
 
 ### 创建容器
 
-解压镜像
 
-- 可以通过overlay方式挂载多个文件夹构造容器根文件系统目录
-- 存储已pull镜像信息
-- 解析容器配置信息
-- 挂载容器目录
-- 写入配置文件
-- 使用crun启动容器
+### 运行容器
 
-使用overlay作为容器文件系统 - mount 
+1. 若不存在网桥
+   1. 创建网桥设备
+   2. 配置包转发
+2. 生成容器配置文件
+3. 挂载容器文件系统 - overlay
+4. 配置容器网络设备 - `iproute2`
+   1. 创建虚拟网卡veth
+   2. 添加到网桥
+   3. 容器运行时crun的hook - `createRunTime`
+      1. 添加veth1到netns中
+      2. 配置IP，默认路由，启动
+   4. 配置端口转发
+5. 配置容器[hooks](https://github.com/opencontainers/runtime-spec/blob/master/config.md#posix-platform-hooks)
+   1. createRuntime - 将网卡添加到容器内命名空间，配置网卡IP、Gateway
+   2. postStart - 通知用户容器进程已启动
+   3. poststop - 清理，删除网卡
+6. 执行crun启动容器
