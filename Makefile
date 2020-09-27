@@ -1,6 +1,5 @@
-CXXFLAGS=-g -Wall -Ilib
+CXXFLAGS=-g -Wall -Ilib -D CPPHTTPLIB_OPENSSL_SUPPORT
 LLIB=-lssl -lz -lcrypto -lpthread -larchive
-CCMACRO=-D CPPHTTPLIB_OPENSSL_SUPPORT
 
 OBJS=container_repo.o create.o extract.o main.o network.o pull.o utils.o httplib.o logger.o
 TARGET=microc
@@ -25,10 +24,10 @@ pull.o: pull.cpp pull.h lib/logger.h lib/httplib.h lib/json.hpp config.h utils.h
 utils.o: utils.cpp utils.h lib/logger.h
 
 logger.o: lib/logger.cpp lib/logger.h
-	g++ $(CXXFLAGS) -c -o $@ lib/logger.cpp
+	g++ $(CXXFLAGS)  -c -o $@ lib/logger.cpp
 
 httplib.o: lib/httplib.cc lib/httplib.h
-	g++ $(CXXFLAGS) $(CCMACRO) -c -o $@ lib/httplib.cc
+	g++ $(CXXFLAGS) $(CCMACRO)  -c -o $@ lib/httplib.cc
 
 clean:
 	rm -f *.o *.out

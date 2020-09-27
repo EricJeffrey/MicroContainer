@@ -52,7 +52,7 @@ struct ImageData {
 string getRegistryPath(RegistryEndPoint endPoint, std::vector<string> args = {});
 
 // no throw
-int pull(const string &imgNameTag, const string &regAddr = defaultRegAddr);
+int pull(const string &imgNameTag, const string &regAddr = DefaultRegAddr);
 
 // no throw
 int pull(const string &imgName, const string &tag, const string &regAddr);

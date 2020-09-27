@@ -67,13 +67,13 @@ public:
 };
 
 inline nlohmann::json getImgManifest(const string &imgId) {
-    std::ifstream imgManiFS(imageDirPath + imgId + "/manifest.json");
+    std::ifstream imgManiFS(ImageDirPath + imgId + "/manifest.json");
     return nlohmann::json::parse(
         string((std::istreambuf_iterator<char>(imgManiFS)), std::istreambuf_iterator<char>()));
 }
 
 inline nlohmann::json getImgContConfig(const string &imgId) {
-    std::ifstream imgConfig(imageDirPath + imgId + "/config.json");
+    std::ifstream imgConfig(ImageDirPath + imgId + "/config.json");
     return nlohmann::json::parse(string((std::istreambuf_iterator<char>(imgConfig)),
                                         std::istreambuf_iterator<char>()))
         .at("container_config");
