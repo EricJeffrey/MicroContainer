@@ -13,6 +13,8 @@ static const char ipName[] = "ip";
 static const char iptablesPath[] = "/usr/sbin/iptables";
 static const char iptablesName[] = "iptables";
 
+static const string netNsPathPrefix = "microc-";
+
 // throw on error
 void addDefGatewayRoute(const string &gatewayIp, const string &devName);
 

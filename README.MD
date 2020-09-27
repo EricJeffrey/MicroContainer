@@ -55,25 +55,62 @@ OCI给出了镜像的[分发规范](https://github.com/opencontainers/distributi
 3. 获取并提取每一层的压缩包
 4. 保存配置文件和清单
 
+### 容器生命周期
+
+文件: 
+
+- 容器仓库文件`continerRepo.json`
+  ```
+  容器的状态 created/running/stopped
+  创建时间 yyyy-MM-dd'T'HH:mm:ss.SSSXXX
+  使用的镜像ID imageID
+  ```
+- 容器的OCI配置文件`config.json`
+
+生命周期:
+
+1. 创建容器
+2. 启动容器
+   1. 附加到容器
+   2. 在容器内执行程序
+3. 停止容器
+
 ### 创建容器
 
+`microc create iamge containername`
 
-### 运行容器
+1. 检查容器仓库文件是否存在 - utils
+   - 不存在则创建仓库文件 - {}
+2. 生成容器名哈希
+3. 验证容器名是否被占用
+   - 读取仓库文件并检验哈希值
+4. 验证镜像是否存在
+   - 读取镜像仓库遍历查找: name+tag/id
+5. 读取镜像的 manifest[layers] 中的每一个 digest
+6. 创建容器目录，merged work diff
+7. 保存digest到容器目录lower文件内
+8. 使用容器id创建netns
+9.  读取镜像config，获取其中 {Cmd, Entrypoint, Env} 的值
+10. 创建config.json
+   - 修改root[path]=merged, hostname=shaId[0:12], cmd=Cmd/Entrypoint, env=Env, netns.pat
+12. 保存容器配置信息，更新容器仓库信息
 
-1. 若不存在网桥
-   1. 创建网桥设备
-   2. 配置包转发
-2. 生成容器配置文件
-3. 挂载容器文件系统 - overlay
-4. 配置容器网络设备 - `iproute2`
-   1. 创建虚拟网卡veth
-   2. 添加到网桥
-   3. 容器运行时crun的hook - `createRunTime`
-      1. 添加veth1到netns中
-      2. 配置IP，默认路由，启动
-   4. 配置端口转发
-5. 配置容器[hooks](https://github.com/opencontainers/runtime-spec/blob/master/config.md#posix-platform-hooks)
-   1. createRuntime - 将网卡添加到容器内命名空间，配置网卡IP、Gateway
-   2. postStart - 通知用户容器进程已启动
-   3. poststop - 清理，删除网卡
-6. 执行crun启动容器
+
+### 启动容器
+
+容器的输出需要后台daemon程序使用命名管道方式记录。
+
+1. 挂载容器文件目录
+   1. `mount overlay...`
+2. 配置网桥、虚拟网卡，网络命名空间netns - `fork&exec() + ip link + ip addr + iptables + route`
+   1. 配置设备地址
+   2. 配置端口映射，netns内的网关
+   3. 使用文件保持netns
+3. 生成`config.json`，设置步骤2创建的netns
+4. 根据参数配置`{terminal: true/false}`
+   1. -i - 交互式运行，保持标准IO打开
+   2. -t - 分配伪终端，将容器标准IO附加到伪终端
+   3. -d - 后台运行，重定向标准输入输出，不分配伪终端
+   4. 执行`crun run ...`
+5. 配置pidfile
+6. 记录容器状态 - 启动时间...

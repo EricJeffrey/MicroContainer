@@ -2,11 +2,15 @@
 #define UTILS_CPP
 
 #include "utils.h"
+#include "logger.h"
 
 #include <ctime>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 
+#include <openssl/sha.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <wait.h>
 #include <sys/stat.h>
@@ -62,5 +66,58 @@ string concat(const vector<string> &argv) {
         res.append(x).append(" ");
     return res;
 };
+
+bool isRegFileExist(const string &filePath) {
+    struct stat statBuf;
+    if (stat(filePath.c_str(), &statBuf) == -1) {
+        const int tmpErrno = errno;
+        if (tmpErrno == ENOENT)
+            return false;
+        else {
+            loggerInstance()->sysError(errno, "Call to stat on", filePath, "failed");
+            throw runtime_error("call to stat failed");
+        }
+    }
+    return S_ISREG(statBuf.st_mode);
+}
+
+// create file with content
+void createFile(const string &filePath, const string &content) {
+    int fd = open(filePath.c_str(), O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IROTH | S_IWOTH);
+    if (fd == -1) {
+        loggerInstance()->sysError(errno, "Call to open ", filePath, "failed");
+        throw runtime_error("call to open failed");
+    }
+    if (write(fd, content.c_str(), content.size()) == -1) {
+        loggerInstance()->sysError(errno, "Call to write failed");
+        throw runtime_error("call to write failed");
+    }
+    if (close(fd) == -1) {
+        loggerInstance()->sysError(errno, "Call to close return -1");
+    }
+}
+
+string sha256_string(const char *str, size_t len) {
+    char output_buffer[65];
+    std::fill(output_buffer, output_buffer + 65, 0);
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+    SHA256_Update(&sha256, str, len);
+    SHA256_Final(hash, &sha256);
+    int i = 0;
+    for (i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        sprintf(output_buffer + (i * 2), "%02x", hash[i]);
+    }
+    return string(output_buffer);
+}
+
+string nowISO() {
+    time_t now;
+    time(&now);
+    char buf[30] = {};
+    strftime(buf, sizeof(buf), "%F%T%Z", gmtime(&now));
+    return buf;
+}
 
 #endif // UTILS_CPP

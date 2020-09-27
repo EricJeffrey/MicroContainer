@@ -3,13 +3,17 @@
 #define MICRO_CONTAINER_CPP
 
 #include "pull.h"
+#include "create.h"
 
 void runCommand(int argc, const char *argv[]) {
     if (argc == 3 && string(argv[1]) == "pull") {
         pull(argv[2]);
+    } else if (argc == 4 && string(argv[1]) == "create") {
+        createContainer(argv[3], argv[2]);
     } else {
         std::cerr << "supported command: " << std::endl;
         std::cerr << argv[0] << " pull name:tag" << std::endl;
+        std::cerr << argv[0] << " create image name" << std::endl;
     }
 }
 

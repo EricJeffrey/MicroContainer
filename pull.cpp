@@ -3,24 +3,12 @@
 
 #include "pull.h"
 #include "extract.h"
-#include "imagerepo.h"
+#include "image_repo.h"
+#include "utils.h"
 
 #include <fstream>
 
-string sha256_string(const char *str, size_t len) {
-    char output_buffer[65];
-    std::fill(output_buffer, output_buffer + 65, 0);
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256_CTX sha256;
-    SHA256_Init(&sha256);
-    SHA256_Update(&sha256, str, len);
-    SHA256_Final(hash, &sha256);
-    int i = 0;
-    for (i = 0; i < SHA256_DIGEST_LENGTH; i++) {
-        sprintf(output_buffer + (i * 2), "%02x", hash[i]);
-    }
-    return string(output_buffer);
-}
+typedef std::pair<int, nlohmann::json> PairIntJson;
 
 string getRegistryPath(RegistryEndPoint endPoint, std::vector<string> args) {
     std::stringstream ss;
@@ -67,6 +55,7 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
         httplib::Result blobResp = client.Get(
             blobAddr.c_str(), httplib::Headers(),
             [&](const httplib::Response &tmpResp) {
+                // FIXME should throw error here
                 if (tmpResp.status != 200 && tmpResp.status / 100 != 3) {
                     loggerInstance()->error("Fetch image layer failed, invalid response code");
                     return false;
@@ -77,7 +66,7 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
             [&](const char *data, size_t dataLength) {
                 layerFStream.write(data, dataLength);
                 receivedSize += dataLength;
-                // todo change to logger::raw, use function template
+                // todo change to logger::raw or something like that
                 std::cerr << "\r" << blobCntK << "/" << blobSetSz << " " << blobSum.substr(7, 16)
                           << ": " << receivedSize * 1.0 / totalSize * 100 << "%";
                 return true;
@@ -141,6 +130,16 @@ PairIntJson fetchV2Config(httplib::Client &client, const ImageData &imageData,
     }
 }
 
+ImageRepo readRepo(const string &repoFilePath) {
+    // may need lock file first
+    std::ifstream repoFStream(repoFilePath);
+    string repoJsonStr((std::istreambuf_iterator<char>(repoFStream)),
+                       std::istreambuf_iterator<char>());
+    if (repoJsonStr.empty())
+        repoJsonStr = "{}";
+    return ImageRepo::buildFromJson(nlohmann::json::parse(repoJsonStr));
+}
+
 int pull(const string &imgNameTag, const string &regAddr) {
     string imgName, tag;
     const size_t colonPos = imgNameTag.find(':');
@@ -156,24 +155,19 @@ int pull(const string &imgNameTag, const string &regAddr) {
 // No throw
 int pull(const string &imgName, const string &tag, const string &regAddr) {
     using std::get;
+    using std::make_shared;
+    using std::shared_ptr;
 
     // check local existence
     loggerInstance()->info("Checking", imgName + ":" + tag, "locally");
-    ImageRepoInfo repoInfo;
+    ImageRepo imageRepo;
     try {
-        // may need lock file first
-        std::ifstream repoFStream(imageDirPath + imageRepoFileName);
-        string repoJsonStr((std::istreambuf_iterator<char>(repoFStream)),
-                           std::istreambuf_iterator<char>());
-        repoFStream.close();
-        if (repoJsonStr.empty())
-            repoJsonStr = "{}";
-        repoInfo = ImageRepoInfo::buildFromJson(nlohmann::json::parse(repoJsonStr));
+        imageRepo = readRepo(imageDirPath + imageRepoFileName);
     } catch (const std::exception &e) {
-        loggerInstance()->error("Cannot read local repo info:", e.what());
+        loggerInstance()->error("Read local repo info failed:", e.what());
         return -1;
     }
-    if (repoInfo.contains(imgName, tag)) {
+    if (imageRepo.contains(imgName, tag)) {
         // find locally
         loggerInstance()->info("Find", imgName + ":" + tag, "locally, exiting");
         return 0;
@@ -181,12 +175,15 @@ int pull(const string &imgName, const string &tag, const string &regAddr) {
 
     // fetch from registry
     loggerInstance()->info("Fetching image", imgName + ":" + tag);
-    httplib::Client client(regAddr.c_str());
-    client.set_read_timeout(readTimeoutInSec);
+
+    /* FIXME if on stack(i.e. httplib::Client client(regAddr.c_str())), cause seg fault (value of
+     * imageRepo.repo._M_buckets changed) */
+    shared_ptr<httplib::Client> cliPtr = make_shared<httplib::Client>(regAddr.c_str());
+    (*cliPtr).set_read_timeout(readTimeoutInSec);
 
     // check connection
     loggerInstance()->info("Connecting to registry:", regAddr);
-    auto checkConnRes = checkV2Conn(client);
+    auto checkConnRes = checkV2Conn((*cliPtr));
     if (checkConnRes.first != 200 || checkConnRes.second) {
         if (checkConnRes.second)
             loggerInstance()->error("Connect to registry:", regAddr, "failed");
@@ -198,7 +195,7 @@ int pull(const string &imgName, const string &tag, const string &regAddr) {
 
     // get manifest
     loggerInstance()->info("Fetching image manifest");
-    auto getManifestRes = getManifest(client, imgName, tag);
+    auto getManifestRes = getManifest((*cliPtr), imgName, tag);
     if (get<2>(getManifestRes) || get<1>(getManifestRes) != 200) {
         if (get<2>(getManifestRes))
             loggerInstance()->error("Fetch image manifest from registry:", regAddr, "failed");
@@ -225,9 +222,9 @@ int pull(const string &imgName, const string &tag, const string &regAddr) {
     // fetch blobs
     loggerInstance()->info("Fetching image layers");
     try {
-        client.set_follow_location(true);
+        (*cliPtr).set_follow_location(true);
         std::cerr << std::fixed << std::setprecision(2);
-        fetchBlobs(client, imageData, imgName);
+        fetchBlobs((*cliPtr), imageData, imgName);
     } catch (const std::exception &e) {
         loggerInstance()->error("Fetch image layer failed:", e.what());
         return -1;
@@ -261,8 +258,8 @@ int pull(const string &imgName, const string &tag, const string &regAddr) {
     loggerInstance()->info("Fetching image configuration");
     if (manifestSchemaVersion == 2) {
         // get config directly
-        client.set_follow_location(true);
-        auto fetchConfigRes = fetchV2Config(client, imageData, imgName, tag);
+        (*cliPtr).set_follow_location(true);
+        auto fetchConfigRes = fetchV2Config((*cliPtr), imageData, imgName, tag);
         if (fetchConfigRes.first != 0)
             return -1;
         imageData.config = fetchConfigRes.second;
@@ -299,10 +296,10 @@ int pull(const string &imgName, const string &tag, const string &regAddr) {
         return -1;
     }
     // store image info
-    repoInfo.addImage(imgName, tag, imageData.configBlobDigest);
+    imageRepo.add(imgName, tag, imageData.configBlobDigest);
     try {
         std::ofstream repoFStream(imageDirPath + imageRepoFileName);
-        repoFStream << repoInfo.toJsonString();
+        repoFStream << imageRepo.toJsonString();
         repoFStream.close();
     } catch (const std::exception &e) {
         loggerInstance()->error("Write image repo info failed:", e.what());

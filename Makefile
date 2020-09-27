@@ -1,32 +1,34 @@
-CCFLAGS=-g -c -Wall -Ilib
+CXXFLAGS=-g -Wall -Ilib
 LLIB=-lssl -lz -lcrypto -lpthread -larchive
 CCMACRO=-D CPPHTTPLIB_OPENSSL_SUPPORT
 
+OBJS=container_repo.o create.o extract.o main.o network.o pull.o utils.o httplib.o logger.o
+TARGET=microc
+
 .PHONY: main clean clean-build
 
-main: main.o logger.o httplib.o pull.o extract.o network.o utils.o
-	g++ -g -o microc main.o logger.o httplib.o pull.o extract.o $(CCMACRO) $(LLIB)
+main: $(OBJS)
+	g++ $(CXXFLAGS) -o $(TARGET) $(LLIB) $(CCMACRO) $(OBJS) --std=c++11
 
-main.o: main.cpp pull.h
-	g++ $(CCFLAGS) -o main.o main.cpp
+container_repo.o: container_repo.cpp container_repo.h lib/logger.h lib/json.hpp
 
-logger.o: lib/logger.cpp lib/logger.h
-	g++ $(CCFLAGS) -o logger.o lib/logger.cpp
-
-httplib.o: lib/httplib.cc lib/httplib.h
-	g++ $(CCFLAGS) $(CCMACRO) -o httplib.o lib/httplib.cc
-
-pull.o: pull.cpp pull.h imagerepo.h
-	g++ $(CCFLAGS) $(CCMACRO) -o pull.o pull.cpp
+create.o: create.cpp network.h utils.h lib/logger.h create.h config.h container_repo.h lib/json.hpp image_repo.h
 
 extract.o: extract.cpp extract.h
-	g++ $(CCFLAGS) -o extract.o extract.cpp
 
-network.o: network.h network.cpp utils.o
-	g++ $(CCFLAGS) -o network.o network.cpp
+main.o: main.cpp pull.h lib/logger.h lib/httplib.h lib/json.hpp config.h utils.h create.h
 
-utils.o: utils.h utils.cpp
-	g++ $(CCFLAGS) -o utils.o utils.cpp
+network.o: network.cpp network.h utils.h lib/logger.h
+
+pull.o: pull.cpp pull.h lib/logger.h lib/httplib.h lib/json.hpp config.h utils.h extract.h image_repo.h
+
+utils.o: utils.cpp utils.h lib/logger.h
+
+logger.o: lib/logger.cpp lib/logger.h
+	g++ $(CXXFLAGS) -c -o $@ lib/logger.cpp
+
+httplib.o: lib/httplib.cc lib/httplib.h
+	g++ $(CXXFLAGS) $(CCMACRO) -c -o $@ lib/httplib.cc
 
 clean:
 	rm -f *.o *.out

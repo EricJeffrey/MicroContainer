@@ -4,8 +4,9 @@
 #include "logger.h"
 #include "httplib.h"
 #include "json.hpp"
+#include "config.h"
+#include "utils.h"
 
-#include <openssl/sha.h>
 #include <sstream>
 #include <ostream>
 #include <iostream>
@@ -15,18 +16,7 @@
 #include <cstdio>
 #include <vector>
 
-const string imageDirPath = "./build/images/";
-const string imageRepoFileName = "repo.json";
-const string layerDirPath = "./build/layers/";
-const string overlayDirPath = "./build/overlay/";
-
-const string defaultRegAddr = "https://ejlzjv4p.mirror.aliyuncs.com";
-// const string defaultRegAddr = "https://docker.mirrors.ustc.edu.cn";
-const time_t readTimeoutInSec = 30;
-
-// FIXME should use a specified output stream
-
-string sha256_string(const char *str, size_t len);
+// TODO should use a specified output stream
 
 enum RegistryEndPoint { CHECK = 0, IMAGE_MANIFESTS, IMAGE_BLOBS };
 
@@ -66,21 +56,5 @@ int pull(const string &imgNameTag, const string &regAddr = defaultRegAddr);
 
 // no throw
 int pull(const string &imgName, const string &tag, const string &regAddr);
-
-typedef std::pair<int, bool> PairIntBool;
-// check connection, return <http-status-code, client.error()>
-PairIntBool checkV2Conn(httplib::Client &client);
-
-typedef std::tuple<string, int, bool> TupStrIntBool;
-// return <manifest, status-code, error>
-TupStrIntBool getManifest(httplib::Client &client, const string &imgName, const string &tag);
-
-// fetch & store blobs, throw httplib.client error
-void fetchBlobs(httplib::Client &client, const ImageData &imageData, const string &imgName);
-
-typedef std::pair<int, nlohmann::json> PairIntJson;
-// return <errCode, configJson>, log on process
-PairIntJson fetchV2Config(httplib::Client &client, const ImageData &imageData,
-                          const string &imgName, const string &tag);
 
 #endif // PULL_H

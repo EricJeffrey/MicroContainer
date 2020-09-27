@@ -16,10 +16,6 @@
 #define CPPHTTPLIB_KEEPALIVE_TIMEOUT_SECOND 5
 #endif
 
-#ifndef CPPHTTPLIB_KEEPALIVE_TIMEOUT_USECOND
-#define CPPHTTPLIB_KEEPALIVE_TIMEOUT_USECOND 0
-#endif
-
 #ifndef CPPHTTPLIB_KEEPALIVE_MAX_COUNT
 #define CPPHTTPLIB_KEEPALIVE_MAX_COUNT 5
 #endif
@@ -78,6 +74,10 @@
 
 #ifndef CPPHTTPLIB_RECV_BUFSIZ
 #define CPPHTTPLIB_RECV_BUFSIZ size_t(4096u)
+#endif
+
+#ifndef CPPHTTPLIB_COMPRESSION_BUFSIZ
+#define CPPHTTPLIB_COMPRESSION_BUFSIZ size_t(16384u)
 #endif
 
 #ifndef CPPHTTPLIB_THREAD_POOL_COUNT
@@ -176,6 +176,7 @@ using socket_t = int;
 #include <array>
 #include <atomic>
 #include <cassert>
+#include <cctype>
 #include <climits>
 #include <condition_variable>
 #include <errno.h>
@@ -189,6 +190,7 @@ using socket_t = int;
 #include <mutex>
 #include <random>
 #include <regex>
+#include <sstream>
 #include <string>
 #include <sys/stat.h>
 #include <thread>
@@ -384,6 +386,7 @@ struct Request {
 struct Response {
   std::string version;
   int status = -1;
+  std::string reason;
   Headers headers;
   std::string body;
 
@@ -590,6 +593,7 @@ public:
   void set_socket_options(SocketOptions socket_options);
 
   void set_keep_alive_max_count(size_t count);
+  void set_keep_alive_timeout(time_t sec);
   void set_read_timeout(time_t sec, time_t usec = 0);
   void set_write_timeout(time_t sec, time_t usec = 0);
   void set_idle_interval(time_t sec, time_t usec = 0);
@@ -614,6 +618,7 @@ protected:
 
   std::atomic<socket_t> svr_sock_;
   size_t keep_alive_max_count_ = CPPHTTPLIB_KEEPALIVE_MAX_COUNT;
+  time_t keep_alive_timeout_sec_ = CPPHTTPLIB_KEEPALIVE_TIMEOUT_SECOND;
   time_t read_timeout_sec_ = CPPHTTPLIB_READ_TIMEOUT_SECOND;
   time_t read_timeout_usec_ = CPPHTTPLIB_READ_TIMEOUT_USECOND;
   time_t write_timeout_sec_ = CPPHTTPLIB_WRITE_TIMEOUT_SECOND;

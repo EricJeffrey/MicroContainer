@@ -117,7 +117,7 @@ void createBridgeDev() {
     }
 }
 
-// FIXME what about log?
+// TODO what about log?
 
 // create bridge and config nat (via iptable)
 // no throw
