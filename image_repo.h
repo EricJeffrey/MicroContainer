@@ -54,6 +54,8 @@ public:
     // throw
     string toJsonString() { return nlohmann::json(repo).dump(4); }
 
+    ImgRepoContent &getRepo() { return repo; }
+
     static ImageRepo fromFile(const string &filePath) {
         std::ifstream imgRepoFStream(filePath);
         return buildFromJson(nlohmann::json::parse(string(

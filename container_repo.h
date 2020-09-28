@@ -63,7 +63,6 @@ public:
 
     static ContainerRepo fromFile(const string &filePath);
 
-    // todo 如何处理netns
     static nlohmann::json createSpecConfig(const vector<string> &envs, const vector<string> &args,
                                            const string &rootfsPath, const string &hostname,
                                            const string &netnsPath);

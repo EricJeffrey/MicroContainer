@@ -49,37 +49,54 @@ TupStrIntBool getManifest(httplib::Client &client, const string &imgName, const 
 void fetchBlobs(httplib::Client &client, const ImageData &imageData, const string &imgName) {
     int blobSetSz = imageData.layerBlobSumSet.size(), blobCntK = 1;
     for (auto &&blobSum : imageData.layerBlobSumSet) {
+        if (isRegFileExist(OverlayDirPath + blobSum.substr(7))) {
+            std::cerr << "\r" << blobCntK << "/" << blobSetSz << " " << blobSum.substr(7, 16)
+                      << ": local" << std::endl;
+            continue;
+        }
         usleep(800000);
-        size_t totalSize = 0, receivedSize = 0;
         const string blobAddr = getRegistryPath(RegistryEndPoint::IMAGE_BLOBS, {imgName, blobSum});
-        ofstream layerFStream(LayerDirPath + blobSum.substr(7) + ".tar.gz", std::ios::out);
-        httplib::Result blobResp = client.Get(
-            blobAddr.c_str(), httplib::Headers(),
-            [&](const httplib::Response &tmpResp) {
-                // FIXME should retry/throw error here
-                if (tmpResp.status != 200 && tmpResp.status / 100 != 3) {
-                    loggerInstance()->error("Fetch image layer failed, invalid response code");
-                    return false;
-                }
-                totalSize = std::stoul(tmpResp.headers.find("Content-Length")->second);
-                return true;
-            },
-            [&](const char *data, size_t dataLength) {
-                layerFStream.write(data, dataLength);
-                receivedSize += dataLength;
-                // todo change to logger::raw or something like that
-                std::cerr << "\r" << blobCntK << "/" << blobSetSz << " " << blobSum.substr(7, 16)
-                          << ": " << receivedSize * 1.0 / totalSize * 100 << "%";
-                return true;
-            });
-        layerFStream.flush();
-        layerFStream.close();
+        int cntRetry = 0;
+        for (; cntRetry < FetchBlobMaxRetryTimes; cntRetry++) {
+            usleep(80000);
+            bool ok = true;
+            size_t totalSize = 0, receivedSize = 0;
+            ofstream layerFStream(LayerDirPath + blobSum.substr(7) + ".tar.gz", std::ios::out);
+            httplib::Result blobResp = client.Get(
+                blobAddr.c_str(), httplib::Headers(),
+                [&](const httplib::Response &tmpResp) {
+                    if (tmpResp.status != 200 && tmpResp.status / 100 != 3) {
+                        loggerInstance()->warn("Invalid response code, retrying");
+                        ok = false;
+                        return false;
+                    }
+                    totalSize = std::stoul(tmpResp.headers.find("Content-Length")->second);
+                    return true;
+                },
+                [&](const char *data, size_t dataLength) {
+                    layerFStream.write(data, dataLength);
+                    receivedSize += dataLength;
+                    // todo change to logger::raw or something like that
+                    std::cerr << "\r" << blobCntK << "/" << blobSetSz << " "
+                              << blobSum.substr(7, 16) << ": "
+                              << receivedSize * 1.0 / totalSize * 100 << "%";
+                    return true;
+                });
+            layerFStream.flush();
+            layerFStream.close();
+            if (ok)
+                break;
+        }
+        if (cntRetry >= FetchBlobMaxRetryTimes) {
+            loggerInstance()->error("Fetch image layer failed: Exceed max retry times");
+            throw runtime_error("exceed max retry times");
+        }
         ++blobCntK;
         std::cerr << std::endl;
     }
 }
 
-// return <errCode, configJson>, log on process
+// return <errCode, configJson>
 PairIntJson fetchV2Config(httplib::Client &client, const ImageData &imageData,
                           const string &imgName, const string &tag) {
     using std::make_pair;
@@ -141,7 +158,7 @@ ImageRepo readRepo(const string &repoFilePath) {
     return ImageRepo::buildFromJson(nlohmann::json::parse(repoJsonStr));
 }
 
-int pull(const string &imgNameTag, const string &regAddr) {
+int pull(const string &imgNameTag, const string &regAddr) noexcept {
     string imgName, tag;
     const size_t colonPos = imgNameTag.find(':');
     if (colonPos != imgNameTag.npos) {
@@ -154,7 +171,7 @@ int pull(const string &imgNameTag, const string &regAddr) {
 }
 
 // No throw
-int pull(const string &imgName, const string &tag, const string &regAddr) {
+int pull(const string &imgName, const string &tag, const string &regAddr) noexcept {
     using std::get;
     using std::make_shared;
     using std::shared_ptr;
