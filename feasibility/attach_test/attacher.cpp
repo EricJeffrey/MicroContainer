@@ -14,7 +14,9 @@
 
 using std::thread;
 
-const char attachSockPath[] = "/home/eric/coding/MicroContainer/feasibility/attach_test/attach";
+// const char attachSockPath[] = "/home/eric/coding/MicroContainer/feasibility/attach_test/attach";
+const char attachSockPath[] =
+    "/run/libpod/socket/2a6b233aaf4ccfad82d4a851d685354b06312d8749dd150d37fca92db3a9a7a2/attach";
 
 void errExit(const char *msg, const char *desc = nullptr) {
     const int bufsz = strlen(msg) + (desc == nullptr ? 0 : strlen(desc)) + 25;
@@ -29,7 +31,7 @@ void errExit(const char *msg, const char *desc = nullptr) {
 void attacherWork() {
     int sockFd = 0;
     {
-        sockFd = socket(AF_UNIX, SOCK_STREAM, 0);
+        sockFd = socket(AF_UNIX, SOCK_SEQPACKET, 0);
         if (sockFd == -1)
             errExit("socket");
         sockaddr_un addr;
@@ -56,14 +58,16 @@ void attacherWork() {
     const int bufsz = 1024;
     char buf[bufsz + 1] = {};
     while (true) {
-        if (scanf("%s", buf) == -1)
+        if (scanf("%c", buf) == -1)
             errExit("scanf eof");
-        int numScan = strnlen(buf, bufsz - 2);
-        fprintf(stderr, "Data scanf return: %s, num: %d\n", buf, numScan);
-        buf[numScan] = '\n';
-        numScan += 1;
-        if (write(sockFd, buf, numScan) == -1)
+        if (write(sockFd, buf, 1) == -1)
             errExit("write to sock fd");
+        // int numScan = strnlen(buf, bufsz - 2);
+        // fprintf(stderr, "Data scanf return: %s, num: %d\n", buf, numScan);
+        // buf[numScan] = '\n';
+        // numScan += 1;
+        // if (write(sockFd, buf, numScan) == -1)
+        //     errExit("write to sock fd");
     }
 }
 
