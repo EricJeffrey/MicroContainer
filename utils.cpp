@@ -116,7 +116,7 @@ string nowISO() {
     time_t now;
     time(&now);
     char buf[30] = {};
-    strftime(buf, sizeof(buf), "%F%T%Z", gmtime(&now));
+    strftime(buf, sizeof(buf), "%F %T%Z", gmtime(&now));
     return buf;
 }
 

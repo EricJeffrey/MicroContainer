@@ -157,19 +157,6 @@ ImageRepo readRepo(const string &repoFilePath) {
         repoJsonStr = "{}";
     return ImageRepo::buildFromJson(nlohmann::json::parse(repoJsonStr));
 }
-
-int pull(const string &imgNameTag, const string &regAddr) noexcept {
-    string imgName, tag;
-    const size_t colonPos = imgNameTag.find(':');
-    if (colonPos != imgNameTag.npos) {
-        imgName = imgNameTag.substr(0, colonPos);
-        tag = imgNameTag.substr(colonPos + 1);
-    } else {
-        imgName = imgNameTag, tag = "latest";
-    }
-    return pull(imgName, tag, regAddr);
-}
-
 // No throw
 int pull(const string &imgName, const string &tag, const string &regAddr) noexcept {
     using std::get;
@@ -324,6 +311,18 @@ int pull(const string &imgName, const string &tag, const string &regAddr) noexce
     loggerInstance()->info("Image", imgName + ":" + tag,
                            "stored at:", ImageDirPath + confDigNoPrefix);
     return 0;
+}
+
+int pull(const string &imgNameTag, const string &regAddr) noexcept {
+    string imgName, tag;
+    const size_t colonPos = imgNameTag.find(':');
+    if (colonPos != imgNameTag.npos) {
+        imgName = imgNameTag.substr(0, colonPos);
+        tag = imgNameTag.substr(colonPos + 1);
+    } else {
+        imgName = imgNameTag, tag = "latest";
+    }
+    return pull(imgName, tag, regAddr);
 }
 
 #endif // PULL_CPP

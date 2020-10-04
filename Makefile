@@ -15,7 +15,7 @@ create.o: create.cpp network.h utils.h lib/logger.h create.h config.h container_
 
 extract.o: extract.cpp extract.h
 
-main.o: main.cpp pull.h lib/logger.h lib/httplib.h lib/json.hpp config.h utils.h create.h
+main.o: main.cpp pull.h lib/logger.h lib/httplib.h lib/json.hpp config.h utils.h create.h app.h
 
 network.o: network.cpp network.h utils.h lib/logger.h
 

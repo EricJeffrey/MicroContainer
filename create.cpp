@@ -115,7 +115,7 @@ void writeOutRepo(const ContainerRepo &repo) {
     ofstream.write(content.c_str(), content.size());
 }
 
-void createContainer(const string &name, const string &imgName) noexcept {
+void createContainer(const string &imgName, const string &name) noexcept {
     try {
         // check if container repo exist
         if (!isRegFileExist(ContainerDirPath + ContainerRepoFileName))

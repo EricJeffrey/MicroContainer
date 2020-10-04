@@ -2,26 +2,26 @@
 #if !defined(MICRO_CONTAINER_CPP)
 #define MICRO_CONTAINER_CPP
 
+#include "app.h"
 #include "pull.h"
 #include "create.h"
 
-void runCommand(int argc, const char *argv[]) {
-    if (argc == 3 && string(argv[1]) == "pull") {
-        pull(argv[2]);
-    } else if (argc == 4 && string(argv[1]) == "create") {
-        createContainer(argv[3], argv[2]);
-    } else {
-        std::cerr << "supported command: " << std::endl;
-        std::cerr << argv[0] << " pull name:tag" << std::endl;
-        std::cerr << argv[0] << " create image name" << std::endl;
-    }
-}
+const string appName = "microc";
+const string desc = "micro management tool for containers and images";
+unordered_map<string, SubCommand> commands = {
+    {"pull", SubCommand(
+                 1, [](const char *argv[]) { pull(argv[2]); }, "image:tag",
+                 "pull image from registry/library")},
+    {"create", SubCommand(
+                   2, [](const char *argv[]) { createContainer(argv[2], argv[3]); }, "imageID name",
+                   "create container with name using imageID")},
+};
 
 int main(int argc, char const *argv[]) {
     try {
         Logger::init(std::cout);
         loggerInstance()->setDebug(true);
-        runCommand(argc, argv);
+        App(appName, desc, commands).start(argc, argv);
     } catch (const std::exception &e) {
         std::cerr << "Pull failed with exception: " << e.what() << '\n';
     }
