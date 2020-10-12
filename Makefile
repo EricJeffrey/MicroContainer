@@ -1,4 +1,4 @@
-CXXFLAGS=-g -Wall -Ilib -D CPPHTTPLIB_OPENSSL_SUPPORT
+CXXFLAGS=-g -Wall -Ilib -D CPPHTTPLIB_OPENSSL_SUPPORT --std=c++17
 LLIB=-lssl -lz -lcrypto -lpthread -larchive
 
 OBJS=container_repo.o create.o extract.o main.o network.o pull.o utils.o httplib.o logger.o
@@ -7,7 +7,7 @@ TARGET=microc
 .PHONY: main clean clean-build
 
 main: $(OBJS)
-	g++ $(CXXFLAGS) -o $(TARGET) $(LLIB) $(CCMACRO) $(OBJS) --std=c++11
+	g++ $(CXXFLAGS) -o $(TARGET) $(LLIB) $(CCMACRO) $(OBJS)
 
 container_repo.o: container_repo.cpp container_repo.h lib/logger.h lib/json.hpp
 
