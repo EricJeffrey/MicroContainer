@@ -63,7 +63,6 @@ stop: 发送term信号，超时后发送kill
 cleanup: 清理已退出容器的挂载点、netns配置、iptable配置、虚拟网卡
 ```
 
-todo: 确定要实现的功能，详细功能描述，功能的实现过程  
 todo: 实现一个简易的conmon - micromon
 
 ----- 
@@ -176,48 +175,41 @@ layer - 文件系统(部分)的压缩包
 
 伪代码
 ```
-layer仓库项 - LayerRepoItem
-{
-  refCount - 使用该layer的镜像个数
-  refImageIDs[] - 使用该layer的镜像ID列表
+LayerRepoItem{
+    id, usedImgCnt
+}
+ContainerRepoItem{
+    id, ImageID, name, created, status{contStatus, time}
+}
+ImageRepoItem{
+    regAddr, id, name, tag, created, usedContCnt
 }
 
-layer仓库 - LayerRepo
-{
-  layerID: LayerRepoItem,
-  ...
+LayerRepo{
+    add(LayerID)
+    update(LayerID, increase)
+    remove(LayerID)
+    foreach()
 }
 
-镜像仓库项 - ImageRepoItem
-{
-  Repository - addr/library/name 镜像的地址
-  Tag - latest|alpine... 镜像的tag
-  ImageID - 镜像ID
-  Created - 镜像创建时间
-  Size - 镜像大小，暂时不使用
+ImageRepo {
+    add(ImageRepoItem)
+    contains(nametag/id)
+    updateUseCnt(ImageID, increase)
+    remove(nametag/id)
+    getItem(nametag/id)
+    print(ostream)
+    foreach()
 }
 
-镜像仓库 - ImageRepo
-{
-  [ImageName:Tag]: ImageRepoItem,
-  ...
+ContainerRepo{
+    contains(name/id)
+    add(ContainerRepoItem)
+    updateStatus(containerID, status)
+    remove(name/id)
+    getItem()
+    print(ostream)
+    isImageUsed(ImageID)
+    foreach()
 }
-
-容器仓库项 - ContainerRepoItem
-{
-  ContainerID - 容器ID
-  ImageID - 使用的镜像ID
-  Command - 容器进程的命令
-  Created - 创建时间
-  Status - 状态，已创建，已运行(x天/小时)，停止
-  Name - 名字
-  PORTS - 端口，暂时不使用
-}
-
-容器仓库
-{
-  [ContainerID]: ContainerRepoItem,
-  ....
-}
-
 ```
