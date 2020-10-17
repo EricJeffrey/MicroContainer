@@ -2,7 +2,7 @@
 #define NETWORK_H
 
 #include "utils.h"
-#include "logger.h"
+#include "lib/logger.h"
 
 const string bridgeName = "br-microc";
 const string bridgeAddr = "10.0.1.1/24";

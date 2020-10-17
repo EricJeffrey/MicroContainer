@@ -2,19 +2,60 @@
 #define UTILS_CPP
 
 #include "utils.h"
-#include "logger.h"
+#include "lib/logger.h"
 
-#include <ctime>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 
-#include <openssl/sha.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <wait.h>
+#include <openssl/sha.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
+#include <wait.h>
+
+vector<string> split(const string &str, const string &delimiter) {
+    vector<string> res;
+    size_t laPos = 0, curPos, sizeDeli = delimiter.size();
+    if (sizeDeli == 0)
+        return {};
+    curPos = str.find_first_of(delimiter);
+    while (curPos != string::npos) {
+        res.emplace_back(str.substr(laPos, curPos - laPos));
+        laPos = curPos + sizeDeli;
+        curPos = str.find_first_of(delimiter, laPos);
+    }
+    if (laPos < sizeDeli)
+        res.emplace_back(str.substr(laPos));
+    return res;
+}
+
+int fork_exec_wait(const string &filePath, const vector<string> &args, bool noStdIO) {
+    pid_t child = fork();
+    if (child == -1)
+        throw SysError(errno, "Call to fork failed");
+    else if (child == 0) { // child
+        if (noStdIO)
+            close(STDOUT_FILENO), close(STDERR_FILENO), close(STDIN_FILENO);
+        const size_t sz = args.size();
+        char *argv[sz + 1];
+        for (size_t i = 0; i < sz; i++)
+            argv[i] = strdup(args[i].c_str());
+        argv[sz] = nullptr;
+        if (execv(filePath.c_str(), argv) == -1)
+            exit(1);
+    } else { // parent
+        int statLoc = -1;
+        if (waitpid(child, &statLoc, 0) == -1)
+            throw SysError(errno, "Call to waitpid failed");
+        else if (WIFEXITED(statLoc))
+            return WEXITSTATUS(statLoc);
+        else
+            throw IncorrectlyExitError("Child returned incorrectly");
+    }
+    return 0;
+}
 
 string genRandomStr(int len) {
     string res;
@@ -27,59 +68,12 @@ string genRandomStr(int len) {
     return res;
 }
 
-int fork_exec_wait(const string &filePath, const vector<string> &args, bool noOut) {
-    int ret = 0;
-    pid_t child = -1;
-    child = fork();
-    if (child == -1)
-        throw runtime_error(string("Call to fork failed: ") + strerror(errno));
-    else if (child == 0) {
-        // child
-        if (noOut) {
-            close(STDOUT_FILENO);
-            close(STDERR_FILENO);
-        }
-        const size_t sz = args.size();
-        char *argv[sz + 1];
-        for (size_t i = 0; i < sz; i++)
-            argv[i] = strdup(args[i].c_str());
-        argv[sz] = nullptr;
-        ret = execv(filePath.c_str(), argv);
-        if (ret == -1)
-            exit(1);
-    } else {
-        int statLoc = -1;
-        ret = waitpid(child, &statLoc, 0);
-        if (ret == -1)
-            throw runtime_error(string("Call to waitpid failed: ") + strerror(errno));
-        else if (WIFEXITED(statLoc))
-            return WEXITSTATUS(statLoc);
-        else
-            throw IncorrectlyExitError("Child returned incorrectly");
-    }
-    return 0;
-}
-
 string concat(const vector<string> &argv) {
     string res;
     for (auto &&x : argv)
         res.append(x).append(" ");
     return res;
 };
-
-bool isRegFileExist(const string &filePath) {
-    struct stat statBuf;
-    if (stat(filePath.c_str(), &statBuf) == -1) {
-        const int tmpErrno = errno;
-        if (tmpErrno == ENOENT)
-            return false;
-        else {
-            loggerInstance()->sysError(errno, "Call to stat on", filePath, "failed");
-            throw runtime_error("call to stat failed");
-        }
-    }
-    return S_ISREG(statBuf.st_mode);
-}
 
 // create file with content
 void createFile(const string &filePath, const string &content) {

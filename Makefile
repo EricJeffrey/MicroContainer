@@ -1,27 +1,49 @@
 CXXFLAGS=-g -Wall -Ilib -D CPPHTTPLIB_OPENSSL_SUPPORT --std=c++17
-LLIB=-lssl -lz -lcrypto -lpthread -larchive
+LLIB=-lssl -lz -lcrypto -lpthread -larchive -lleveldb
 
-OBJS=container_repo.o create.o extract.o main.o network.o pull.o utils.o httplib.o logger.o
+OBJS=container_repo.o container_repo_item.o create.o extract.o\
+  image_repo.o image_repo_item.o network.o pull.o repo.o utils.o logger.o httplib.o
 TARGET=microc
+TESTTARGET=test.out
 
-.PHONY: main clean clean-build
+.PHONY: main clean clean-build test
 
-main: $(OBJS)
-	g++ $(CXXFLAGS) -o $(TARGET) $(LLIB) $(CCMACRO) $(OBJS)
+main:  main.o $(OBJS)
+	g++ $(CXXFLAGS) -o $(TARGET) $(LLIB) $(CCMACRO)  main.o $(OBJS)
 
-container_repo.o: container_repo.cpp container_repo.h lib/logger.h lib/json.hpp
+test: test_main.o $(OBJS)
+	g++ $(CXXFLAGS) -o $(TESTTARGET) $(LLIB) $(CCMACRO) test_main.o $(OBJS)
 
-create.o: create.cpp network.h utils.h lib/logger.h create.h config.h container_repo.h lib/json.hpp image_repo.h
+container_repo.o: container_repo.cpp container_repo.h \
+  container_repo_item.h repo_item.h utils.h sys_error.h repo.h db_error.h
+
+container_repo_item.o: container_repo_item.cpp container_repo_item.h \
+  repo_item.h utils.h sys_error.h
+
+create.o: create.cpp create.h config.h lib/json.hpp container_repo.h \
+  container_repo_item.h repo_item.h utils.h sys_error.h repo.h db_error.h \
+  image_repo.h image_repo_item.h lib/logger.h network.h
 
 extract.o: extract.cpp extract.h
 
-main.o: main.cpp pull.h lib/logger.h lib/httplib.h lib/json.hpp config.h utils.h create.h app.h
+image_repo.o: image_repo.cpp image_repo.h config.h lib/json.hpp \
+  image_repo_item.h repo_item.h repo.h db_error.h
 
-network.o: network.cpp network.h utils.h lib/logger.h
+image_repo_item.o: image_repo_item.cpp image_repo_item.h repo_item.h \
+  utils.h sys_error.h
 
-pull.o: pull.cpp pull.h lib/logger.h lib/httplib.h lib/json.hpp config.h utils.h extract.h image_repo.h
+main.o: main.cpp app.h pull.h config.h lib/json.hpp lib/httplib.h \
+  lib/logger.h utils.h sys_error.h create.h
 
-utils.o: utils.cpp utils.h lib/logger.h
+network.o: network.cpp network.h utils.h sys_error.h lib/logger.h
+
+pull.o: pull.cpp pull.h config.h lib/json.hpp lib/httplib.h lib/logger.h \
+  utils.h sys_error.h extract.h image_repo.h image_repo_item.h repo_item.h \
+  repo.h db_error.h
+
+repo.o: repo.cpp repo.h db_error.h repo_item.h
+
+utils.o: utils.cpp utils.h sys_error.h lib/logger.h
 
 logger.o: lib/logger.cpp lib/logger.h
 	g++ $(CXXFLAGS)  -c -o $@ lib/logger.cpp
@@ -29,11 +51,18 @@ logger.o: lib/logger.cpp lib/logger.h
 httplib.o: lib/httplib.cc lib/httplib.h
 	g++ $(CXXFLAGS) $(CCMACRO)  -c -o $@ lib/httplib.cc
 
+test_main.o: test/test_main.cpp test/test_image_repo.h test/test_utils.h \
+  test/../image_repo.h test/../config.h test/../lib/json.hpp \
+  test/../image_repo_item.h test/../repo_item.h test/../repo.h \
+  test/../db_error.h test/../image_repo_item.h test/../utils.h \
+  test/../sys_error.h test/test_container_repo.h test/../config.h \
+  test/../container_repo.h test/../container_repo_item.h test/../utils.h
+	g++ $(CXXFLAGS)  -c -o $@ $<
+
+
 clean:
 	rm -f *.o *.out
+	rm microc
 
 clean-build:
-	rm -rf build/images/*
-	rm -rf build/layers/*
-	rm -rf build/containers/*
-	rm -rf build/overlay/*
+	rm -rf build/*

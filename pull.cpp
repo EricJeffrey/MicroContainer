@@ -6,6 +6,7 @@
 #include "image_repo.h"
 #include "utils.h"
 
+#include <filesystem>
 #include <fstream>
 
 typedef std::pair<int, nlohmann::json> PairIntJson;
@@ -28,12 +29,6 @@ string getRegistryPath(RegistryEndPoint endPoint, std::vector<string> args) {
     return ss.str();
 }
 
-// check connection, return <http-status-code, client.error()>
-PairIntBool checkV2Conn(httplib::Client &client) {
-    auto resp = client.Get(getRegistryPath(RegistryEndPoint::CHECK).c_str());
-    return std::make_pair(resp->status, resp.error());
-}
-
 // return <manifest, status-code, error>
 TupStrIntBool getManifest(httplib::Client &client, const string &imgName, const string &tag) {
     httplib::Headers headers(
@@ -45,11 +40,12 @@ TupStrIntBool getManifest(httplib::Client &client, const string &imgName, const 
     return std::make_tuple(resp->body, 200, false);
 }
 
+// FIXME Fetch image v2 manifest failed: SignatureDoesNotMatch
 // throw httplib.client error
 void fetchBlobs(httplib::Client &client, const ImageData &imageData, const string &imgName) {
     int blobSetSz = imageData.layerBlobSumSet.size(), blobCntK = 1;
     for (auto &&blobSum : imageData.layerBlobSumSet) {
-        if (isRegFileExist(OverlayDirPath + blobSum.substr(7))) {
+        if (std::filesystem::is_directory(OVERLAY_DIR_PATH + blobSum.substr(7))) {
             std::cerr << "\r" << blobCntK << "/" << blobSetSz << " " << blobSum.substr(7, 16)
                       << ": local" << std::endl;
             continue;
@@ -61,7 +57,8 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
             usleep(80000);
             bool ok = true;
             size_t totalSize = 0, receivedSize = 0;
-            ofstream layerFStream(LayerDirPath + blobSum.substr(7) + ".tar.gz", std::ios::out);
+            ofstream layerFStream(LAYER_FILE_DIR_PATH + blobSum.substr(7) + ".tar.gz",
+                                  std::ios::out);
             httplib::Result blobResp = client.Get(
                 blobAddr.c_str(), httplib::Headers(),
                 [&](const httplib::Response &tmpResp) {
@@ -102,22 +99,22 @@ PairIntJson fetchV2Config(httplib::Client &client, const ImageData &imageData,
     using std::make_pair;
     auto errorPair = make_pair(-1, "");
     // get config directly
-    auto imgConfigBlobResp = client.Get(
-        getRegistryPath(RegistryEndPoint::IMAGE_BLOBS, {imgName, imageData.configBlobDigest})
+    auto imgConfBlobResp = client.Get(
+        getRegistryPath(RegistryEndPoint::IMAGE_BLOBS, {imgName, imageData.confBlobDigest})
             .c_str());
-    if (imgConfigBlobResp.error()) {
-        loggerInstance()->error("Get image configuration failed:", imgConfigBlobResp.error());
+    if (imgConfBlobResp.error()) {
+        loggerInstance()->error("Get image configuration failed:", imgConfBlobResp.error());
         return errorPair;
     }
-    if (imgConfigBlobResp->status == 200) {
+    if (imgConfBlobResp->status == 200) {
         try {
-            auto resJson = nlohmann::json::parse(imgConfigBlobResp->body);
-            return make_pair(0, nlohmann::json::parse(imgConfigBlobResp->body));
+            auto resJson = nlohmann::json::parse(imgConfBlobResp->body);
+            return make_pair(0, nlohmann::json::parse(imgConfBlobResp->body));
         } catch (const std::exception &e) {
             loggerInstance()->error("Parsing v2 configuration failed:", e.what());
             return errorPair;
         }
-    } else if (imgConfigBlobResp->status == 404) {
+    } else if (imgConfBlobResp->status == 404) {
         // fall back to v1
         auto imgV1ManifestResp = client.Get(
             getRegistryPath(RegistryEndPoint::IMAGE_MANIFESTS, {imgName, tag}).c_str(),
@@ -143,78 +140,81 @@ PairIntJson fetchV2Config(httplib::Client &client, const ImageData &imageData,
         }
     } else {
         loggerInstance()->error("Fetch image v2 manifest failed, invalid response code:",
-                                imgConfigBlobResp->status);
+                                imgConfBlobResp->status);
+        loggerInstance()->debug("Response: ", [&imgConfBlobResp]() {
+            string res = "{ ";
+            for (auto &&[key, value] : imgConfBlobResp->headers)
+                res += "{" + key + ", " + value + "},";
+            res += " }\n\t" + imgConfBlobResp->body;
+            return res;
+        }());
         return errorPair;
     }
 }
 
-ImageRepo readRepo(const string &repoFilePath) {
-    // may need lock file first
-    std::ifstream repoFStream(repoFilePath);
-    string repoJsonStr((std::istreambuf_iterator<char>(repoFStream)),
-                       std::istreambuf_iterator<char>());
-    if (repoJsonStr.empty())
-        repoJsonStr = "{}";
-    return ImageRepo::buildFromJson(nlohmann::json::parse(repoJsonStr));
-}
 // No throw
 int pull(const string &imgName, const string &tag, const string &regAddr) noexcept {
-    using std::get;
-    using std::make_shared;
-    using std::shared_ptr;
+    using std::get, std::make_shared, std::shared_ptr;
 
     // check local existence
     loggerInstance()->info("Checking", imgName + ":" + tag, "locally");
-    ImageRepo imageRepo;
     try {
-        imageRepo = readRepo(ImageDirPath + ImageRepoFileName);
-    } catch (const std::exception &e) {
-        loggerInstance()->error("Read local repo info failed:", e.what());
-        return -1;
-    }
-    if (imageRepo.contains(imgName, tag)) {
+        ImageRepo imageRepo;
+        imageRepo.open(IMAGE_REPO_DB_PATH);
         // find locally
-        loggerInstance()->info("Find", imgName + ":" + tag, "locally, exiting");
-        return 0;
+        if (imageRepo.contains(imgName, tag)) {
+            loggerInstance()->info("Find", imgName + ":" + tag, "locally, exiting");
+            return 0;
+        }
+    } catch (const std::exception &e) {
+        loggerInstance()->error("Failed to open database:", e.what());
+        return -1;
     }
 
     // fetch from registry
     loggerInstance()->info("Fetching image", imgName + ":" + tag);
-
     httplib::Client client(regAddr.c_str());
     client.set_read_timeout(ReadTimeoutInSec);
-
     // check connection
-    loggerInstance()->info("Connecting to registry:", regAddr);
-    auto checkConnRes = checkV2Conn(client);
-    if (checkConnRes.first != 200 || checkConnRes.second) {
-        if (checkConnRes.second)
+    try {
+        loggerInstance()->info("Connecting to registry:", regAddr);
+        auto resp = client.Get(getRegistryPath(RegistryEndPoint::CHECK).c_str());
+        if (resp.error() != httplib::Success) {
             loggerInstance()->error("Connect to registry:", regAddr, "failed");
-        else
+            return -1;
+        }
+        if (resp->status != 200) {
             loggerInstance()->error("Cannot fetch image from registry:", regAddr,
                                     "v2 not supported");
+            return -1;
+        }
+    } catch (const std::exception &e) {
+        loggerInstance()->error("Connect to registry failed:", e.what());
         return -1;
     }
 
     // get manifest
     loggerInstance()->info("Fetching image manifest");
-    auto getManifestRes = getManifest(client, imgName, tag);
-    if (get<2>(getManifestRes) || get<1>(getManifestRes) != 200) {
-        if (get<2>(getManifestRes))
-            loggerInstance()->error("Fetch image manifest from registry:", regAddr, "failed");
-        else
-            loggerInstance()->info("Image:", imgName + ":" + tag, "not found");
-        return -1;
+    string manifestRaw;
+    {
+        auto getManifestRes = getManifest(client, imgName, tag);
+        if (get<2>(getManifestRes) || get<1>(getManifestRes) != 200) {
+            if (get<2>(getManifestRes))
+                loggerInstance()->error("Fetch image manifest from registry:", regAddr, "failed");
+            else
+                loggerInstance()->info("Image:", imgName + ":" + tag, "not found");
+            return -1;
+        }
+        manifestRaw = get<0>(getManifestRes);
     }
-    string manifestRaw = get<0>(getManifestRes);
 
     // parse manifest
-    int manifestSchemaVersion = 0;
+    int manitSchemaVer = 0;
     ImageData imageData;
     try {
-        manifestSchemaVersion = imageData.buildFromRaw(manifestRaw);
-        if (manifestSchemaVersion != 1 && manifestSchemaVersion != 2) {
-            loggerInstance()->error("Unknown manifest version:", manifestSchemaVersion);
+        manitSchemaVer = imageData.buildFromRaw(manifestRaw);
+        if (manitSchemaVer != 1 && manitSchemaVer != 2) {
+            loggerInstance()->error("Unknown manifest version:", manitSchemaVer);
             return -1;
         }
     } catch (const std::exception &e) {
@@ -237,8 +237,8 @@ int pull(const string &imgName, const string &tag, const string &regAddr) noexce
     loggerInstance()->info("Extracting layers");
     int blobSetSz = imageData.layerBlobSumSet.size(), blobCntK = 1;
     for (auto &&blobSum : imageData.layerBlobSumSet) {
-        const string filePath = LayerDirPath + blobSum.substr(7) + ".tar.gz";
-        const string dstDirPath = OverlayDirPath + blobSum.substr(7) + "/";
+        const string filePath = LAYER_FILE_DIR_PATH + blobSum.substr(7) + ".tar.gz";
+        const string dstDirPath = OVERLAY_DIR_PATH + blobSum.substr(7) + "/";
         try {
             std::cerr << (blobCntK) << "/" << blobSetSz << " " << blobSum.substr(7, 16) << "...";
             auto extractRet = extract(filePath, dstDirPath);
@@ -259,31 +259,30 @@ int pull(const string &imgName, const string &tag, const string &regAddr) noexce
 
     // fetch config, only need on schemaV2
     loggerInstance()->info("Fetching image configuration");
-    if (manifestSchemaVersion == 2) {
+    if (manitSchemaVer == 2) {
         // get config directly
         client.set_follow_location(true);
         auto fetchConfigRes = fetchV2Config(client, imageData, imgName, tag);
         if (fetchConfigRes.first != 0)
             return -1;
         imageData.config = fetchConfigRes.second;
-    } else if (manifestSchemaVersion != 1) {
+    } else if (manitSchemaVer != 1) {
         loggerInstance()->error("Unknown manifest version");
         return -1;
     }
 
     loggerInstance()->info("Storing image");
     // make image dir
-    const string confDigNoPrefix = imageData.configBlobDigest.substr(7);
-    int ret = mkdir((ImageDirPath + confDigNoPrefix).c_str(), S_IRWXU | S_IRWXG | S_IROTH);
+    const string imageID = imageData.confBlobDigest.substr(7);
+    int ret = mkdir((IMAGE_DIR_PATH + imageID).c_str(), S_IRWXU | S_IRWXG | S_IROTH);
     if (ret == -1) {
-        loggerInstance()->sysError(errno, "Make image dir:", ImageDirPath + confDigNoPrefix,
-                                   "failed");
+        loggerInstance()->sysError(errno, "Make image dir:", IMAGE_DIR_PATH + imageID, "failed");
         return -1;
     }
     // store image manifest
     try {
         const string formattedManifest = imageData.manifest.dump(4);
-        ofstream manifestOFStream(ImageDirPath + confDigNoPrefix + "/manifest.json", std::ios::out);
+        ofstream manifestOFStream(IMAGE_DIR_PATH + imageID + "/manifest.json", std::ios::out);
         manifestOFStream.write(formattedManifest.c_str(), formattedManifest.size());
     } catch (const std::exception &e) {
         loggerInstance()->error("Write manifest failed:", e.what());
@@ -292,24 +291,20 @@ int pull(const string &imgName, const string &tag, const string &regAddr) noexce
     // store image config
     try {
         const string formateedConfig = imageData.config.dump(4);
-        ofstream imgConfigOFStream(ImageDirPath + confDigNoPrefix + "/config.json", std::ios::out);
+        ofstream imgConfigOFStream(IMAGE_DIR_PATH + imageID + "/config.json", std::ios::out);
         imgConfigOFStream.write(formateedConfig.c_str(), formateedConfig.size());
     } catch (const std::exception &e) {
         loggerInstance()->error("Write image configuration failed:", e.what());
         return -1;
     }
     // store image info
-    imageRepo.add(imgName, tag, imageData.configBlobDigest);
-    try {
-        std::ofstream repoFStream(ImageDirPath + ImageRepoFileName);
-        repoFStream << imageRepo.toJsonString();
-        repoFStream.close();
-    } catch (const std::exception &e) {
-        loggerInstance()->error("Write image repo info failed:", e.what());
+    {
+        ImageRepoItem item(DEFAULT_REG_ADDR_ABBR, imgName, tag, imageID, now(), 0);
+        ImageRepo imageRepo;
+        imageRepo.open(IMAGE_REPO_DB_PATH);
+        imageRepo.addImg(imageID, item);
     }
-
-    loggerInstance()->info("Image", imgName + ":" + tag,
-                           "stored at:", ImageDirPath + confDigNoPrefix);
+    loggerInstance()->info("Image", imgName + ":" + tag, "stored at:", IMAGE_DIR_PATH + imageID);
     return 0;
 }
 

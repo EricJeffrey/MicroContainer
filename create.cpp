@@ -1,13 +1,13 @@
 #if !defined(CREATE_CPP)
 #define CREATE_CPP
 
-#include "network.h"
 #include "create.h"
-#include "logger.h"
-#include "utils.h"
 #include "config.h"
 #include "container_repo.h"
 #include "image_repo.h"
+#include "lib/logger.h"
+#include "network.h"
+#include "utils.h"
 
 #include <iostream>
 
@@ -23,24 +23,26 @@ void generateSpecConf(const string &dirPath) {
         loggerInstance()->sysError(errno, "Call to chdir:", dirPath, "failed");
         throw runtime_error("call to chdir failed");
     }
-    fork_exec_wait(ContainerRtPath, {ContainerRtName, "spec"}, true);
+    fork_exec_wait(CONTAINER_RT_PATH, {CONTAINER_RT_NAME, "spec"}, true);
 }
 
 // return <bool, str>: <exist, id_without_sha>
-PairBoolStr checkImgExist(const string &imgName) {
-    auto imgRepo = ImageRepo::fromFile(ImageDirPath + ImageRepoFileName);
+std::optional<string> checkImgExist(const string &imgName) {
+
+    ImageRepo imgRepo;
+    imgRepo.open(IMAGE_REPO_DB_PATH);
     size_t pos = imgName.find(':');
     if (pos != imgName.npos) {
         const string name = imgName.substr(0, pos), tag = imgName.substr(pos + 1);
         if (imgRepo.contains(name, tag))
-            return PairBoolStr(true, imgRepo.getId(name, tag));
+            return imgRepo.getItem(name, tag).imageID;
     } else {
         if (imgRepo.contains(imgName))
-            return PairBoolStr(true, imgRepo.getId(imgName));
+            return imgRepo.getItem(imgName).imageID;
         if (imgRepo.contains(imgName, "latest"))
-            return PairBoolStr(true, imgRepo.getId(imgName, "latest"));
+            return imgRepo.getItem(imgName, "latest").imageID;
     }
-    return PairBoolStr(false, "");
+    return {};
 }
 
 // get layer ids of image
@@ -56,22 +58,22 @@ vector<string> getImgLayers(const string &imgId) {
 
 // make id/[merged, work, diff] id/lower
 void prepareContDirs(const string &id, const vector<string> &layers) {
-    if (mkdir((ContainerDirPath + id).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1) {
-        loggerInstance()->sysError(errno, "Call to mkdir:", ContainerDirPath + id, "failed");
+    if (mkdir((CONTAINER_DIR_PATH + id).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1) {
+        loggerInstance()->sysError(errno, "Call to mkdir:", CONTAINER_DIR_PATH + id, "failed");
         throw runtime_error("call to mkdir failed");
     }
     // make dirs
     vector<string> dirNames({"merged", "work", "diff"});
     for (auto &&name : dirNames) {
-        if (mkdir((ContainerDirPath + id + "/" + name).c_str(),
+        if (mkdir((CONTAINER_DIR_PATH + id + "/" + name).c_str(),
                   S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) == -1) {
-            loggerInstance()->sysError(errno, "Call to mkdir:", ContainerDirPath + id + "/" + name,
+            loggerInstance()->sysError(errno, "Call to mkdir:", CONTAINER_DIR_PATH + id + "/" + name,
                                        "failed");
             throw runtime_error("call to mkdir failed");
         }
     }
     // make lower file
-    ofstream lowerOFS(ContainerDirPath + id + "/lower");
+    ofstream lowerOFS(CONTAINER_DIR_PATH + id + "/lower");
     string ss;
     for (size_t i = 0; i < layers.size(); i++) {
         if (i != 0)
@@ -84,7 +86,7 @@ void prepareContDirs(const string &id, const vector<string> &layers) {
 
 // using default spec config and update `env, args, hostname, rootfs.path, netns`
 nlohmann::json mkContSpecConfig(const string &id, const nlohmann::json &imgContConf) {
-    nlohmann::json contSpecConfig = ContainerRepo::defaultSpecConfig;
+    nlohmann::json contSpecConfig = DEFAULT_CONTAINER_CONF_SPEC;
     // env
     contSpecConfig["process"]["env"] = imgContConf["Env"];
     // args
@@ -97,7 +99,7 @@ nlohmann::json mkContSpecConfig(const string &id, const nlohmann::json &imgContC
     // hostname
     contSpecConfig["hostname"] = id.substr(0, 12);
     // rootfs.path
-    contSpecConfig["root"]["path"] = ContainerDirPath + id + "/merged";
+    contSpecConfig["root"]["path"] = CONTAINER_DIR_PATH + id + "/merged";
     // netns
     for (auto &&ns : contSpecConfig["linux"]["namespaces"]) {
         if (ns["type"].get<string>() == "network") {
@@ -108,41 +110,39 @@ nlohmann::json mkContSpecConfig(const string &id, const nlohmann::json &imgContC
     return contSpecConfig;
 }
 
-// write repo out to containers/repo.json
-void writeOutRepo(const ContainerRepo &repo) {
-    std::ofstream ofstream(ContainerDirPath + ContainerRepoFileName);
-    auto content = repo.toJsonStr();
-    ofstream.write(content.c_str(), content.size());
-}
-
 void createContainer(const string &imgName, const string &name) noexcept {
     try {
-        // check if container repo exist
-        if (!isRegFileExist(ContainerDirPath + ContainerRepoFileName))
-            createFile(ContainerDirPath + ContainerRepoFileName, "{}");
         const string containerId = sha256_string(name.c_str(), name.size());
-        auto repo = ContainerRepo::fromFile(ContainerDirPath + ContainerRepoFileName);
-        if (repo.contains(containerId)) {
-            loggerInstance()->info("container:", name, "exists");
-            return;
+        // check local existence
+        {
+            ContainerRepo repo;
+            repo.open(CONTAINER_REPO_DB_PATH);
+            if (repo.contains(containerId)) {
+                loggerInstance()->info("container:", name, "exists");
+                return;
+            }
         }
         string imgId;
         {
             auto tmpRes = checkImgExist(imgName);
-            if (!tmpRes.first) {
+            if (!tmpRes.has_value()) {
                 loggerInstance()->info("can not find image:", imgName);
                 return;
             }
-            imgId = tmpRes.second;
+            imgId = tmpRes.value();
         }
-        auto layers = getImgLayers(imgId);
-        auto imgContConfig = getImgContConfig(imgId);
-        auto contSpecConfig = mkContSpecConfig(containerId, imgContConfig);
-        prepareContDirs(containerId, layers);
-        createFile(ContainerDirPath + containerId + "/config.json", contSpecConfig.dump(4));
+        auto contSpecConfig = mkContSpecConfig(containerId, getImgContConfig(imgId));
+        prepareContDirs(containerId, getImgLayers(imgId));
+        createFile(CONTAINER_DIR_PATH + containerId + "/config.json", contSpecConfig.dump(4));
         // update repo info {id: {name, imageid, state:created, createdTime:now}}
-        repo.add(containerId, name, imgId, ContState::created, nowISO());
-        writeOutRepo(repo);
+        {
+            ContainerRepo repo;
+            repo.open(CONTAINER_REPO_DB_PATH);
+            ContainerRepoItem item(containerId, imgId, name,
+                                   concat(contSpecConfig["process"]["args"]), now(),
+                                   ContainerRepoItem::Status(CREATED, now()));
+            repo.add(containerId, item);
+        }
         std::cerr << containerId << std::endl;
     } catch (const std::exception &e) {
         loggerInstance()->error("Create container failed:", e.what());

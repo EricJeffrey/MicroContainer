@@ -29,7 +29,7 @@ unique_ptr<Logger> &loggerInstance();
 
 class Logger {
 private:
-    static unique_ptr<Logger> loggerPtr2;
+    static unique_ptr<Logger> loggerPtr;
     static mutex loggerMutex;
 
     std::ostream *out;

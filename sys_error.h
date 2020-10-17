@@ -8,7 +8,8 @@
 
 using std::string;
 
-struct SysError : public std::exception {
+// error when making syscall
+struct SysError : protected std::exception {
     const int err;
     const string errMsg;
     SysError(int err, const char *msg) : err(err), errMsg(msg) {}

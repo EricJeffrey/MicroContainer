@@ -20,29 +20,29 @@ unique_ptr<Logger>& loggerInstance() { return Logger::getInstance(); }
 
 unique_ptr<Logger>& Logger::init(ostream &o) {
     using std::lock_guard;
-    if (loggerPtr2 == nullptr) {
+    if (loggerPtr == nullptr) {
         lock_guard<mutex> guard(loggerMutex);
-        if (loggerPtr2 == nullptr)
-            loggerPtr2.reset(new Logger(o));
+        if (loggerPtr == nullptr)
+            loggerPtr.reset(new Logger(o));
     }
-    return loggerPtr2;
+    return loggerPtr;
 }
 unique_ptr<Logger>& Logger::init(const string &fpath) {
     using std::lock_guard;
-    if (loggerPtr2 == nullptr) {
+    if (loggerPtr == nullptr) {
         lock_guard<mutex> guard(loggerMutex);
-        if (loggerPtr2 == nullptr)
-            loggerPtr2.reset(new Logger(fpath));
+        if (loggerPtr == nullptr)
+            loggerPtr.reset(new Logger(fpath));
     }
-    return loggerPtr2;
+    return loggerPtr;
 }
 unique_ptr<Logger>& Logger::getInstance() {
-    if (loggerPtr2 == nullptr)
+    if (loggerPtr == nullptr)
         throw std::runtime_error("Logger is not initialized, call Logger::init first");
-    return loggerPtr2;
+    return loggerPtr;
 }
 
-unique_ptr<Logger> Logger::loggerPtr2;
+unique_ptr<Logger> Logger::loggerPtr;
 mutex Logger::loggerMutex;
 
 #endif // LOGGER_CPP

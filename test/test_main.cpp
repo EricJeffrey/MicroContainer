@@ -5,9 +5,6 @@
 #include "test_image_repo.h"
 #include "test_container_repo.h"
 
-/*
-g++ -g -Wall -lleveldb -o test_main/test.out test_main.cpp *.cpp --std=c++17
-*/
 int main(int argc, char const *argv[]) {
     cerr << "STARTING TEST" << endl << endl;
     try {

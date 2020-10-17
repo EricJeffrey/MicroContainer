@@ -1,84 +1,72 @@
-#if !defined(IMAGE_REPO)
-#define IMAGE_REPO
+#if !defined(IMAGE_REPO_H)
+#define IMAGE_REPO_H
 
-#include "json.hpp"
+#include "config.h"
+#include "image_repo_item.h"
+#include "leveldb/db.h"
+#include "lib/json.hpp"
+#include "repo.h"
 
-#include <unordered_map>
-#include <string>
+#include <iostream>
 #include <fstream>
-#include <istream>
 
-using std::string;
-using std::unordered_map;
-
-typedef unordered_map<string, unordered_map<string, string>> ImgRepoContent;
-
-class ImageRepo {
+struct ImgNameIDRepoItem : public RepoItem {
+    const string value;
+    ImgNameIDRepoItem(const string &value) : value(value) {}
+    string toDBString() const override { return value; }
+};
+struct ImgNameIDRepo : public Repo {
+    ImgNameIDRepo() {}
+    ~ImgNameIDRepo() {}
+    void add(const string &name, const string &tag, const string &id) {
+        Repo::add(name + ":" + tag, ImgNameIDRepoItem(id));
+        Repo::add(id, ImgNameIDRepoItem(name + ":" + tag));
+    }
+    void removeItem(const string &id) { removeItem(id, get(id)); }
+    void removeItem(const string &id, const string &nametag) {
+        Repo::remove(id);
+        Repo::remove(nametag);
+    }
+};
+/**
+ * local image repository.
+ * note: to add/remove image, use addImg(),removeImg() instead of add(),remove()
+ */
+class ImageRepo : public Repo {
 private:
-    ImgRepoContent repo;
-
 public:
-    ImageRepo() {}
-    explicit ImageRepo(const ImgRepoContent &repo) : repo(repo) {}
+    ImageRepo() : Repo() {}
     ~ImageRepo() {}
 
-    void add(const string &name, const string &tag, const string &sha) {
-        const string &nameWithTag = name + ":" + tag;
-        if (repo.find(name) == repo.end() || repo[name].find(nameWithTag) == repo[name].end())
-            repo[name][nameWithTag] = sha;
-    }
+    ImageRepoItem getItem(const string &id) { return ImageRepoItem(get(id)); }
+    ImageRepoItem getItem(const string &name, const string &tag);
+    void addImg(const string &id, const ImageRepoItem &item);
+    void removeImg(const string &id);
+    void removeImg(const string &name, const string &tag);
+    bool contains(const string &name, const string &tag);
+    bool contains(const string &id) { return Repo::contains(id); }
 
-    // return empty string when not found, use [contains] to check first
-    string getId(const string &shortId) {
-        for (auto &&imgRepo : repo) {
-            for (auto &&shaId : imgRepo.second) {
-                if (shaId.second.substr(7, shortId.size()) == shortId)
-                    return shaId.second.substr(7);
-            }
-        }
-        return "";
-    }
-
-    string getId(const string &name, const string &tag) {
-        return repo[name][name + ":" + tag].substr(7);
-    }
-
-    bool contains(const string &name, const string &tag) {
-        return repo.find(name) != repo.end() &&
-               repo[name].find(name + ":" + tag) != repo[name].end();
-    }
-
-    // id should not start with 'sha256:'
-    bool contains(const string &id) { return getId(id).size() != 0; }
-
-    // throw
-    string toJsonString() { return nlohmann::json(repo).dump(4); }
-
-    ImgRepoContent &getRepo() { return repo; }
-
-    static ImageRepo fromFile(const string &filePath) {
-        std::ifstream imgRepoFStream(filePath);
-        return buildFromJson(nlohmann::json::parse(string(
-            (std::istreambuf_iterator<char>(imgRepoFStream)), std::istreambuf_iterator<char>())));
-    }
-
-    // throw
-    static ImageRepo buildFromJson(const nlohmann::json &repoJson) {
-        return ImageRepo(repoJson.get<ImgRepoContent>());
-    }
+    /**
+     * @brief increase usedContNum of image with newValue
+     * @param value value to increase, default is 1, can be negative
+     */
+    void updateUsedContNum(const string &id, int value = 1);
 };
 
 inline nlohmann::json getImgManifest(const string &imgId) {
-    std::ifstream imgManiFS(ImageDirPath + imgId + "/manifest.json");
+    std::ifstream imgManiFS(IMAGE_DIR_PATH + imgId + "/manifest.json");
     return nlohmann::json::parse(
         string((std::istreambuf_iterator<char>(imgManiFS)), std::istreambuf_iterator<char>()));
 }
 
 inline nlohmann::json getImgContConfig(const string &imgId) {
-    std::ifstream imgConfig(ImageDirPath + imgId + "/config.json");
+    std::ifstream imgConfig(IMAGE_DIR_PATH + imgId + "/config.json");
     return nlohmann::json::parse(string((std::istreambuf_iterator<char>(imgConfig)),
                                         std::istreambuf_iterator<char>()))
         .at("container_config");
 }
 
-#endif // IMAGE_REPO
+std::ostream &operator<<(std::ostream &o, const ImageRepo &repo);
+
+
+#endif // IMAGE_REPO_H
