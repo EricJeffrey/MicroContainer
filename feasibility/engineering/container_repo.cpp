@@ -19,7 +19,7 @@ bool ContainerRepo::isImageUsed(const string &imageId) {
     return false;
 }
 
-inline std::ostream &operator<<(std::ostream &out, const ContainerRepo &repo) {
+std::ostream &operator<<(std::ostream &out, const ContainerRepo &repo) {
     vector<int> widths;
     for (auto &&v : ContainerRepoItem::ATTR_TAG_LIST)
         widths.push_back(v.size());

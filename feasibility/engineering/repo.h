@@ -33,15 +33,12 @@ public:
     virtual ~Repo() {
         if (db != nullptr)
             delete db;
-        db = nullptr;
     }
     // no move & copy
     Repo(const Repo &) = delete;
     Repo(const Repo &&) = delete;
     Repo &operator=(const Repo &) = delete;
     Repo &operator=(const Repo &&) = delete;
-
-    leveldb::DB *getDBPointer() const { return db; }
 
     /**
      * @brief open database at path

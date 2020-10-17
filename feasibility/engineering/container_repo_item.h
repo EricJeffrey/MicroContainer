@@ -15,17 +15,18 @@ enum ContainerStatus { CREATED, RUNNING, STOPPED, INVALID };
 struct ContainerRepoItem : public RepoItem {
     struct Status : public RepoItem {
         static const char SEP = '_';
-        ContainerStatus type;
+        ContainerStatus contStatus;
         time_t time;
 
         Status() {}
+        Status(ContainerStatus contStatus, time_t time) : contStatus(contStatus), time(time) {}
         Status(const string &str);
         Status &operator=(const Status &) = default;
 
         string toDBString() const override;
         string toString() const;
         void update(ContainerStatus contStatus, time_t time) {
-            this->type = contStatus, this->time = time;
+            this->contStatus = contStatus, this->time = time;
         }
     };
     static const char SEP = '|';
@@ -35,6 +36,10 @@ struct ContainerRepoItem : public RepoItem {
     time_t created;
     Status status;
 
+    ContainerRepoItem(const string &id, const string &imgId, const string &name, const string &cmd,
+                      time_t created, Status status)
+        : containerID(id), imageID(imgId), name(name), command(cmd), created(created),
+          status(status) {}
     ContainerRepoItem(const string &str);
     string toDBString() const override;
     vector<string> toStringList();

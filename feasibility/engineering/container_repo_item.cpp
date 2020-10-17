@@ -9,15 +9,15 @@ using std::runtime_error;
 
 string ContainerRepoItem::Status::toString() const {
     string res;
-    switch (type) {
+    switch (contStatus) {
         case CREATED:
-            res += "CREATED";
+            res += "CREATED AT";
             break;
         case RUNNING:
-            res += "UP";
+            res += "UP   SINCE";
             break;
         case STOPPED:
-            res += "EXITED";
+            res += "EXITED  AT";
             break;
         default:
             res += "INVALID";
@@ -27,7 +27,7 @@ string ContainerRepoItem::Status::toString() const {
 }
 
 string ContainerRepoItem::Status::toDBString() const {
-    return std::to_string(type) + Status::SEP + std::to_string(time);
+    return std::to_string(contStatus) + Status::SEP + std::to_string(time);
 }
 
 /**
@@ -42,7 +42,7 @@ ContainerRepoItem::Status::Status(const string &dbStr) {
         if (contStaPos == dbStr.npos || contStaPos == 0 || contStaPos + 1 == dbStr.size())
             break;
         int contStatusInt = std::stoi(dbStr.substr(0, contStaPos));
-        this->type =
+        this->contStatus =
             (contStatusInt == 0
                  ? CREATED
                  : (contStatusInt == 1 ? RUNNING : (contStatusInt == 2 ? STOPPED : INVALID)));
@@ -97,7 +97,7 @@ string ContainerRepoItem::extractImgID(const string &str) {
 }
 
 vector<string> ContainerRepoItem::ATTR_TAG_LIST = {
-    "CONTAINER ID", "IMAGE", "NAME", "COMMAND", "CREATED", "STATUS", "PORTS",
+    "CONTAINER ID", "IMAGE", "NAME", "COMMAND", "CREATED", "STATUS",
 };
 
 #endif // CONTAINER_REPO_ITEM_CPP

@@ -18,6 +18,6 @@ struct ContainerRepo : public Repo {
     bool isImageUsed(const string &imageId);
 };
 
-inline std::ostream &operator<<(std::ostream &out, const ContainerRepo &repo);
+std::ostream &operator<<(std::ostream &out, const ContainerRepo &repo);
 
 #endif // CONTAINER_REPO_H

@@ -38,7 +38,7 @@ void test_img_repo() {
         "/home/eric/coding/MicroContainer/feasibility/engineering/foobar/imagerepo";
     vector<ImageRepoItem> imgRepoItems = {
         ImageRepoItem("docker.io", "name1", "latest", "1111", 2000, 0),
-        ImageRepoItem("daocloud.io", "name2", "hahah", "2222", 3000, 3),
+        ImageRepoItem("daocloud.io", "name2", "hahah", "2222", now(), 3),
         ImageRepoItem("reg.ali.io", "name3", "2.2.33", "3333", 1258, 1),
     };
     {
@@ -60,6 +60,10 @@ void test_img_repo() {
         CHECK_AND_THROW(repo.contains("name2", "latest"), false, "ImageRepo.contains");
         repo.removeImg("2222");
         CHECK_AND_THROW(repo.contains("2222"), false, "ImageRepo.contains after .removeImg");
+        repo.updateUsedContNum("1111", 3);
+        CHECK_AND_THROW(repo.getItem("1111").toDBString(),
+                        string("docker.io:name1:latest:1111:2000:3"),
+                        "ImageRepo.updateUsedContNum");
         repo.close();
         CHECK_SHOULD_THROW(repo.contains("222"));
     }
