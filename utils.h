@@ -4,6 +4,7 @@
 #include <chrono>
 #include <exception>
 #include <iomanip>
+#include <ostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -83,5 +84,13 @@ string sha256_string(const char *str, size_t len);
 
 // get current iso time
 string nowISO();
+
+/**
+ * @brief formatted output lines in rows & columns
+ * @param left lineup left, using std::left
+ * @param spacing space size between column
+ */
+void lineupPrint(std::ostream &out, const vector<vector<string>> &lines, bool left = true,
+                 int spacing = 2);
 
 #endif // UTILS_H

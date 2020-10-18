@@ -4,6 +4,7 @@
 #include <iomanip>
 
 #include "image_repo.h"
+#include "utils.h"
 
 ImageRepoItem ImageRepo::getItem(const string &name, const string &tag) {
     ImgNameIDRepo idRepo;
@@ -46,28 +47,12 @@ void ImageRepo::updateUsedContNum(const string &id, int value) {
 }
 
 std::ostream &operator<<(std::ostream &out, const ImageRepo &repo) {
-    vector<int> widths;
-    for (auto &&attr : ImageRepoItem::ATTR_TAG_LIST)
-        widths.push_back(attr.size());
     vector<vector<string>> lines;
+    lines.emplace_back(ImageRepoItem::ATTR_TAG_LIST);
     repo.foreach ([&](int i, const string &key, const string &value) {
-        auto &&strList = ImageRepoItem(value).toStringList();
-        for (size_t j = 0; j < strList.size(); j++)
-            widths[j] = std::max(widths[j], (int)strList[j].size());
-        lines.emplace_back(strList);
+        lines.emplace_back(ImageRepoItem(value).toStringList());
     });
-    // output tag
-    for (size_t i = 0; i < widths.size(); i++) {
-        widths[i] += 2;
-        out << std::left << std::setw(widths[i]) << ImageRepoItem::ATTR_TAG_LIST[i];
-    }
-    out << std::endl;
-    // output all value
-    for (size_t i = 0; i < lines.size(); i++) {
-        for (size_t j = 0; j < lines[i].size(); j++)
-            out << std::left << std::setw(widths[j]) << lines[i][j];
-        out << std::endl;
-    }
+    lineupPrint(out, lines);
     return out;
 }
 

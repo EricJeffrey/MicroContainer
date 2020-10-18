@@ -46,7 +46,7 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
     int blobSetSz = imageData.layerBlobSumSet.size(), blobCntK = 1;
     for (auto &&blobSum : imageData.layerBlobSumSet) {
         if (std::filesystem::is_directory(OVERLAY_DIR_PATH + blobSum.substr(7))) {
-            std::cerr << "\r" << blobCntK << "/" << blobSetSz << " " << blobSum.substr(7, 16)
+            std::cout << "\r" << blobCntK << "/" << blobSetSz << " " << blobSum.substr(7, 16)
                       << ": local" << std::endl;
             continue;
         }
@@ -74,7 +74,7 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
                     layerFStream.write(data, dataLength);
                     receivedSize += dataLength;
                     // todo change to logger::raw or something like that
-                    std::cerr << "\r" << blobCntK << "/" << blobSetSz << " "
+                    std::cout << "\r" << blobCntK << "/" << blobSetSz << " "
                               << blobSum.substr(7, 16) << ": "
                               << receivedSize * 1.0 / totalSize * 100 << "%";
                     return true;
@@ -89,7 +89,7 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
             throw runtime_error("exceed max retry times");
         }
         ++blobCntK;
-        std::cerr << std::endl;
+        std::cout << std::endl;
     }
 }
 
@@ -226,7 +226,7 @@ int pull(const string &imgName, const string &tag, const string &regAddr) noexce
     loggerInstance()->info("Fetching image layers");
     try {
         client.set_follow_location(true);
-        std::cerr << std::fixed << std::setprecision(2);
+        std::cout << std::fixed << std::setprecision(2);
         fetchBlobs(client, imageData, imgName);
     } catch (const std::exception &e) {
         loggerInstance()->error("Fetch image layer failed:", e.what());
@@ -240,14 +240,14 @@ int pull(const string &imgName, const string &tag, const string &regAddr) noexce
         const string filePath = LAYER_FILE_DIR_PATH + blobSum.substr(7) + ".tar.gz";
         const string dstDirPath = OVERLAY_DIR_PATH + blobSum.substr(7) + "/";
         try {
-            std::cerr << (blobCntK) << "/" << blobSetSz << " " << blobSum.substr(7, 16) << "...";
+            std::cout << (blobCntK) << "/" << blobSetSz << " " << blobSum.substr(7, 16) << "...";
             auto extractRet = extract(filePath, dstDirPath);
             ++blobCntK;
             if (extractRet.first == -1) {
                 loggerInstance()->error("call to extract failed:", extractRet.second);
                 return -1;
             } else {
-                std::cerr << "done\n";
+                std::cout << "done\n";
                 if (extractRet.first == -2)
                     loggerInstance()->warn("extract returned with warn:", extractRet.second);
             }
@@ -311,7 +311,7 @@ int pull(const string &imgName, const string &tag, const string &regAddr) noexce
 int pull(const string &imgNameTag, const string &regAddr) noexcept {
     string imgName, tag;
     const size_t colonPos = imgNameTag.find(':');
-    if (colonPos != imgNameTag.npos) {
+    if (colonPos != string::npos) {
         imgName = imgNameTag.substr(0, colonPos);
         tag = imgNameTag.substr(colonPos + 1);
     } else {

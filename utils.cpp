@@ -114,4 +114,19 @@ string nowISO() {
     return buf;
 }
 
+void lineupPrint(std::ostream &out, const vector<vector<string>> &lines, bool left, int spacing) {
+    vector<int> widths;
+    for (size_t i = 0; i < lines.size(); i++)
+        for (size_t j = 0; j < lines[i].size(); j++)
+            if (j >= widths.size())
+                widths.push_back(lines[i][j].size());
+            else
+                widths[j] = std::max(widths[j], (int)lines[i][j].size());
+    for (size_t i = 0; i < lines.size(); i++) {
+        for (size_t j = 0; j < lines[i].size(); j++)
+            out << (left ? std::left : std::right) << std::setw(widths[j] + spacing) << lines[i][j];
+        out << std::endl;
+    }
+}
+
 #endif // UTILS_CPP
