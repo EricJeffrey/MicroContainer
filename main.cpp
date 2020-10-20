@@ -7,6 +7,7 @@
 #include "image_ls.h"
 #include "lib/CLI11.hpp"
 #include "pull.h"
+#include "network.h"
 
 #include <filesystem>
 
@@ -21,10 +22,14 @@ void init() {
             create_directories(path);
     Logger::init(cout);
     loggerInstance()->setDebug(true);
-    // todo create bridge here
+    createBridge();
 }
 
 int main(int argc, char const *argv[]) {
+    if (geteuid() != 0) {
+        cout << "Please run with root account" << endl;
+        return 0;
+    }
     using std::make_shared, CLI::App, CLI::App_p;
     try {
         init();
@@ -100,7 +105,7 @@ int main(int argc, char const *argv[]) {
     } catch (const std::exception &e) {
         cout << "Microc start failed: " << e.what() << endl;
     } catch (...) {
-        cout << "Microc start failed, unknown exception throwed" << endl;
+        cout << "Microc start failed, unknown exception" << endl;
     }
     return EXIT_FAILURE;
 }

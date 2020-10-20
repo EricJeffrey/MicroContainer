@@ -2,11 +2,24 @@
 #define NETWORK_CPP
 
 #include "network.h"
+#include "lib/logger.h"
+#include "utils.h"
+
+/**
+ * Create netns of name, stored in /var/run/netns/name.
+ * Using "ip netns add name" (fork & exec) to create.
+ *
+ * @return true if successfully create netns, otherwise false
+ * @exception SysError, IncorrectlyExitError
+ */
+inline bool createNetns(const string &name) {
+    return fork_exec_wait("/usr/sbin/ip", {"ip", "netns", "add", name}, true) == 0;
+}
 
 // throw on error
 void addDefGatewayRoute(const string &gatewayIp, const string &devName) {
     vector<string> addRouteArgv(
-        {ipName, "route", "add", "default", "via", gatewayIp, "dev", devName});
+        {ipCmd, "route", "add", "default", "via", gatewayIp, "dev", devName});
     if (fork_exec_wait(ipPath, addRouteArgv) != 0)
         throw runtime_error("Add route failed on exec: " + concat(addRouteArgv));
 }
@@ -17,62 +30,20 @@ void addPortMap(int hostPort, const string &destIp, int destPort, const string &
     // 172.17.0.4:8080
     using std::to_string;
     vector<string> portMapArgv({iptablesName, "-t", "nat", "-A", "PREROUTING", "!", "-i",
-                                bridgeName, "-p", proto, "-m", proto, "--dport",
+                                BRIDGE_NAME, "-p", proto, "-m", proto, "--dport",
                                 to_string(hostPort), "-j", "DNAT", "--to-destination",
                                 destIp + ":" + to_string(destPort)});
     if (fork_exec_wait(iptablesPath, portMapArgv) != 0)
         throw runtime_error("Add port mapping failed on exec: " + concat(portMapArgv));
 }
 
-// throw on error
-void createVethPeer(const string &vethName1, const string &vethName2) {
-    vector<string> addVethArgv(
-        {ipName, "link", "add", vethName1, "type", "veth", "peer", "name", vethName2});
-    if (fork_exec_wait(ipPath, addVethArgv) != 0)
-        throw runtime_error("Add veth peer failed on exec: " + concat(addVethArgv));
-}
-
-// throw on error
-void addVethToNetns(const string &vethName, pid_t pid) {
-    vector<string> addToNsArgv({ipName, "link", "set", vethName, "netns", std::to_string(pid)});
-    if (fork_exec_wait(ipPath, addToNsArgv) != 0)
-        throw runtime_error("Add veth to netns failed on exec: " + concat(addToNsArgv));
-}
-
-// throw on error
-void addVethToBridge(const string &vethName) {
-    vector<string> addVeth2BrArgv({ipName, "link", "set", vethName, "master", bridgeName});
-    if (fork_exec_wait(ipPath, addVeth2BrArgv) != 0)
-        throw runtime_error("Add veth to bridge failed on exec: " + concat(addVeth2BrArgv));
-}
-
-// throw on error
-void confVethIp(const string &vethName, const string &ipAddr, int ipPreLen) {
-    // should be called inside netns
-    vector<vector<string>> argvs({
-        {ipName, "address", "add", ipAddr + "/" + std::to_string(ipPreLen), "dev", vethName},
-        {ipName, "link", "set", vethName, "up"},
-    });
-    for (auto &&argv : argvs) {
-        int retCode = fork_exec_wait(ipPath, argv);
-        if (retCode != 0)
-            throw runtime_error("Config veth ip failed on exec: " + concat(argv));
-    }
-}
-
-// throw on error
-void confVethUp(const string &vethName) {
-    vector<string> argv = {ipName, "link", "set", vethName, "up"};
-    if (fork_exec_wait(ipPath, argv) != 0)
-        throw runtime_error("Config veth up failed on exec: " + concat(argv));
-}
-
 // configure nat if not exist, throw on error
 void confBridgeNat() {
     vector<string> checkArgv({iptablesName, "-t", "nat", "-C", "POSTROUTING", "-s",
-                              bridgeSubnetAddr, "!", "-d", bridgeSubnetAddr, "-j", "MASQUERADE"});
-    vector<string> addArgv({iptablesName, "-t", "nat", "-A", "POSTROUTING", "-s", bridgeSubnetAddr,
-                            "!", "-d", bridgeSubnetAddr, "-j", "MASQUERADE"});
+                              BRIDGE_SUBNET_ADDR, "!", "-d", BRIDGE_SUBNET_ADDR, "-j",
+                              "MASQUERADE"});
+    vector<string> addArgv({iptablesName, "-t", "nat", "-A", "POSTROUTING", "-s",
+                            BRIDGE_SUBNET_ADDR, "!", "-d", BRIDGE_SUBNET_ADDR, "-j", "MASQUERADE"});
     int retCode = fork_exec_wait(iptablesPath, checkArgv);
     if (retCode == 0) {
         return;
@@ -85,30 +56,28 @@ void confBridgeNat() {
 
 // throw on error
 void deleteBridgeNat() {
-    vector<string> delArgv({iptablesName, "-t", "nat", "-D", "POSTROUTING", "-s", bridgeSubnetAddr,
-                            "!", "-d", bridgeSubnetAddr, "-j", "MASQUERADE"});
+    vector<string> delArgv({iptablesName, "-t", "nat", "-D", "POSTROUTING", "-s",
+                            BRIDGE_SUBNET_ADDR, "!", "-d", BRIDGE_SUBNET_ADDR, "-j", "MASQUERADE"});
     if (fork_exec_wait(iptablesPath, delArgv) != 0)
         throw runtime_error("Delete iptables rule failed: " + concat(delArgv));
 }
 
 // throw on error
 void deleteBridgeDev() {
-    vector<string> argv = {ipName, "link", "delete", bridgeName};
+    vector<string> argv = {ipCmd, "link", "delete", BRIDGE_NAME};
     if (fork_exec_wait(ipPath, argv) != 0)
         throw runtime_error("Delete bridge failed on exec: " + concat(argv));
 }
 
 // throw on error
-bool checkBridgeExits() {
-    return fork_exec_wait(ipPath, {ipName, "link", "show", bridgeName}) == 0;
-}
+bool bridgeExits() { return fork_exec_wait(ipPath, {ipCmd, "link", "show", BRIDGE_NAME}) == 0; }
 
 // throw on error
 void createBridgeDev() {
     vector<vector<string>> argvs = {
-        {ipName, "link", "add", bridgeName, "type", "bridge"},
-        {ipName, "address", "add", bridgeAddr, "dev", bridgeName},
-        {ipName, "link", "set", bridgeName, "up"},
+        {ipCmd, "link", "add", BRIDGE_NAME, "type", "bridge"},
+        {ipCmd, "address", "add", BRIDGE_ADDR, "dev", BRIDGE_NAME},
+        {ipCmd, "link", "set", BRIDGE_NAME, "up"},
     };
     for (auto &&argv : argvs) {
         int retCode = fork_exec_wait(ipPath, argv, false);
@@ -117,32 +86,79 @@ void createBridgeDev() {
     }
 }
 
-// TODO what about log?
-
-// create bridge and config nat (via iptable)
-// no throw
-bool createBridgeUpIP() {
+bool createBridge() noexcept {
     try {
-        if (!checkBridgeExits()) {
-            // cout << "Creating bridge" << endl;
+        if (!bridgeExits()) {
             createBridgeDev();
             confBridgeNat();
-            // cout << "Created bridge" << endl;
         }
         return true;
     } catch (const std::exception &e) {
-        // cerr << "Create bridge failed: " << e.what() << endl;
+        loggerInstance()->error("Create bridge failed:", e.what());
         try {
-            if (checkBridgeExits()) {
-                // cout << "Deleting bridge" << endl;
+            if (bridgeExits()) {
                 deleteBridgeDev();
                 deleteBridgeNat();
             }
         } catch (const std::exception &e) {
-            // cerr << "Delete bridge failed: " << e.what() << endl;
+            loggerInstance()->error("Clean device failed:", e.what());
         }
     }
     return false;
+}
+
+std::tuple<bool, string, string> createContNet(const string &contId, const string &ip,
+                                               int ipPreLen) noexcept {
+    const string nsName = NET_NS_PATH_PREFIX + contId.substr(0, 8);
+    const string veth1 = "veth" + genRandomStr(NET_DEV_NAME_SUFFIX_LEN);
+    const string veth2 = "veth" + genRandomStr(NET_DEV_NAME_SUFFIX_LEN);
+    const string gateway = ip.substr(0, ip.find_last_of('.')) + ".1";
+    const bool err = true;
+    try {
+        vector<vector<string>> cmds = {
+            {ipCmd, "netns", "add", nsName},
+            {ipCmd, "link", "add", veth1, "type", "veth", "peer", "name", veth2},
+            {ipCmd, "link", "set", veth1, "master", BRIDGE_NAME},
+            {ipCmd, "link", "set", veth1, "up"},
+            {ipCmd, "link", "set", veth2, "netns", nsName},
+            {ipCmd, "netns", "exec", nsName, ipCmd, "address", "add",
+             ip + "/" + std::to_string(ipPreLen), "dev", veth2},
+            {ipCmd, "netns", "exec", nsName, ipCmd, "link", "set", "lo", "up"},
+            {ipCmd, "netns", "exec", nsName, ipCmd, "link", "set", veth2, "up"},
+            {ipCmd, "netns", "exec", nsName, ipCmd, "route", "add", "default", "via", gateway,
+             "dev", veth2},
+        };
+        for (auto &&cmd : cmds) {
+            if (fork_exec_wait(ipPath, cmd) != 0) {
+                loggerInstance()->error("Configure container network faild while exec:",
+                                        concat(cmd));
+                return {err, veth1, veth2};
+            }
+        }
+        return {!err, veth1, veth2};
+    } catch (const std::exception &e) {
+        loggerInstance()->error("Create container network failed:", e.what());
+    } catch (...) {
+        loggerInstance()->error("Create container network failed, unknown exception");
+    }
+    return {err, veth1, veth2};
+}
+
+void cleanupContNet(const string &contId, const std::pair<string, string> &vethPair) noexcept {
+    const string nsName = NET_NS_PATH_PREFIX + contId.substr(0, 8);
+    vector<vector<string>> cmds = {
+        {ipCmd, "netns", "del", nsName},
+        {ipCmd, "link", "set", vethPair.first, "nomaster"},
+        {ipCmd, "link", "delete", vethPair.first},
+    };
+    try {
+        for (auto &&cmd : cmds)
+            fork_exec_wait(ipPath, cmd);
+        fork_exec_wait("/usr/bin/umount", {"umount", "/run/netns/" + nsName});
+        fork_exec_wait("rm", {"/run/netns/" + nsName});
+    } catch (const std::exception &e) {
+        loggerInstance()->error("Cleanup container network failed:", e.what());
+    }
 }
 
 #endif // NETWORK_CPP

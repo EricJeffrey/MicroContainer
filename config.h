@@ -29,7 +29,7 @@ static const string DEFAULT_REG_ADDR_ABBR = "ejlzjv4p.mirror.aliyuncs.com";
 // static const string DEFAULT_REG_ADDR = "https://docker.mirrors.ustc.edu.cn";
 
 // read timeout when pulling image from registry
-static const time_t ReadTimeoutInSec = 30;
+static const time_t READ_TIME_OUT_SEC = 30;
 
 static const int FETCH_MAX_RETRY_TIMES = 15;
 

@@ -1,58 +1,51 @@
 #if !defined(NETWORK_H)
 #define NETWORK_H
 
-#include "utils.h"
-#include "lib/logger.h"
+#include <string>
 
-const string bridgeName = "br-microc";
-const string bridgeAddr = "10.0.1.1/24";
-const string bridgeSubnetAddr = "10.0.1.0/24";
+using std::string;
+
+static const string BRIDGE_NAME = "br-microc";
+static const string BRIDGE_ADDR = "10.66.1.1/24";
+static const string BRIDGE_SUBNET_ADDR = "10.66.1.0/24";
+
+// length of random string of name of net device, e.g. microc-alkij6kn
+static const size_t NET_DEV_NAME_SUFFIX_LEN = 8;
 
 static const char ipPath[] = "/usr/sbin/ip";
-static const char ipName[] = "ip";
+static const char ipCmd[] = "ip";
 static const char iptablesPath[] = "/usr/sbin/iptables";
 static const char iptablesName[] = "iptables";
 
-static const string netNsPathPrefix = "microc-";
-
-// throw on error
-void addDefGatewayRoute(const string &gatewayIp, const string &devName);
+static const string NET_NS_PATH_PREFIX = "microc-";
 
 // throw on error
 void addPortMap(int hostPort, const string &destIp, int destPort, const string &proto = "tcp");
 
-// throw on error
-void createVethPeer(const string &vethName1, const string &vethName2);
-
-// throw on error
-void addVethToNetns(const string &vethName, pid_t pid);
-
-// throw on error
-void addVethToBridge(const string &vethName);
-
-// throw on error
-void confVethIp(const string &vethName, const string &ipAddr, int ipPreLen);
-
-// throw on error
-void confVethUp(const string &vethName);
-
-// configure nat if not exist, throw on error
-void confBridgeNat();
-
-// throw on error
-void deleteBridgeNat();
-
-// throw on error
-void deleteBridgeDev();
-
-// throw on error
-bool checkBridgeExits();
-
-// throw on error
-void createBridgeDev();
-
 // create bridge and config nat (via iptable)
 // no throw
-bool createBridgeUpIP();
+bool createBridge() noexcept;
+
+/**
+ * Configure a netns for container to use, this will:
+ * 1. Create netns(container id as part of name) and veth (auto generate name)
+ * 2. Add veth1 to bridge, add veth2 to netns
+ * 3. Assign ip to veth2 and set up
+ * 4. Add default gateway(.1 of ip) in netns
+ * 
+ * return {err(bool), veth1, veth2}
+ */
+std::tuple<bool, string, string> createContNet(const string &contId, const string &ip,
+                                               int ipPreLen) noexcept;
+
+/**
+ * Cleanup network of a container, this will:
+ * 1. delete netns
+ * 2. remove veth1 from bridge
+ * 3. delete veth1 & veth2
+ * 
+ * Note: this function won't throw(and log) when return value of fork_exec_wait is not 0 
+ */
+void cleanupContNet(const string &contId, const std::pair<string, string> &vethPair) noexcept;
 
 #endif // NETWORK_H

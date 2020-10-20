@@ -59,11 +59,10 @@ httplib.o: lib/httplib.cc lib/httplib.h
 	g++ $(CXXFLAGS)  -c -o $@ lib/httplib.cc
 
 test_main.o: test/test_main.cpp test/test_image_repo.h test/test_utils.h \
-  test/../image_repo.h test/../config.h test/../lib/json.hpp \
-  test/../image_repo_item.h test/../repo_item.h test/../repo.h \
-  test/../db_error.h test/../image_repo_item.h test/../utils.h \
-  test/../sys_error.h test/test_container_repo.h test/../config.h \
-  test/../container_repo.h test/../container_repo_item.h test/../utils.h
+ image_repo.h config.h lib/json.hpp image_repo_item.h repo_item.h repo.h \
+ db_error.h image_repo_item.h utils.h sys_error.h test/test_container_repo.h \
+ config.h container_repo.h container_repo_item.h utils.h test/test_cont_net.h \
+ network.h lib/logger.h
 	g++ $(CXXFLAGS) -c -o $@ $<
 
 

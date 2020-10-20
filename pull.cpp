@@ -173,7 +173,7 @@ int pull(const string &imgName, const string &tag, const string &regAddr) noexce
     loggerInstance()->info("Fetching image", imgName + ":" + tag);
     httplib::Client client(regAddr.c_str());
     client.set_ca_cert_path("/etc/pki/tls/certs/ca-bundle.crt");
-    client.set_read_timeout(ReadTimeoutInSec);
+    client.set_read_timeout(READ_TIME_OUT_SEC);
     client.set_follow_location(true);
     // check connection
     try {

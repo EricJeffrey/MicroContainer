@@ -103,7 +103,7 @@ nlohmann::json mkContSpecConfig(const string &id, const nlohmann::json &imgContC
     // netns
     for (auto &&ns : contSpecConfig["linux"]["namespaces"]) {
         if (ns["type"].get<string>() == "network") {
-            ns["path"] = netNsPathPrefix + id;
+            ns["path"] = NET_NS_PATH_PREFIX + id;
             break;
         }
     }

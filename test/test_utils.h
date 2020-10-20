@@ -26,4 +26,9 @@ template <typename T> void CHECK_AND_THROW(const T &lhs, const T &rhs, const str
         cerr << "PASSED! THROW EXCEPTION: " << typeid(e).name() << ": " << e.what() << endl;       \
     }
 
+void anykey() {
+    cerr << "Press any key to continue..." << endl;
+    std::getchar();
+}
+
 #endif // TEST_UTILS_H

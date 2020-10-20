@@ -53,23 +53,15 @@ inline string timet2Str(time_t time, const string &format = "%F %R") {
 /**
  * @brief fork & exec an program with args,
  * wait for the child and return its exit value
- * @param noStdIO close stderr/stdout/stdin if true
+ * @param noStdIO close stderr/stdout/stdin if true (default true)
  * @return child exit value
  * @exception SysError IncorrectlyExitError
  */
-int fork_exec_wait(const string &filePath, const vector<string> &args, bool noStdIO = false);
-
-/**
- * @brief create netns of name, stored in /var/run/netns/name.
- * using "ip netns add name" (fork & exec) to create.
- * @return true if successfully create netns, otherwise false
- * @exception system_error, IncorrectlyExitError
- */
-inline bool createNetns(const string &name) {
-    return fork_exec_wait("/usr/sbin/ip", {"ip", "netns", "add", name}, true) == 0;
-}
+int fork_exec_wait(const string &filePath, const vector<string> &args, bool noStdIO = true);
 
 // generate random str with alpha & digit
+
+// generate a random string(alpha+digit) with specified length
 string genRandomStr(int len);
 
 /**
