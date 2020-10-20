@@ -9,10 +9,10 @@ TESTTARGET=test.out
 .PHONY: main clean clean-build test
 
 main: main.o $(OBJS)
-	g++ $(CXXFLAGS) -o $(TARGET) $(LLIB) $(CCMACRO)  main.o $(OBJS)
+	g++ $(CXXFLAGS) -o $(TARGET) $(LLIB) main.o $(OBJS)
 
 test: test_main.o $(OBJS)
-	g++ $(CXXFLAGS) -o $(TESTTARGET) $(LLIB) $(CCMACRO) test_main.o $(OBJS)
+	g++ $(CXXFLAGS) -o $(TESTTARGET) $(LLIB) test_main.o $(OBJS)
 
 container_ls.o: container_ls.cpp container_ls.h config.h lib/json.hpp \
  container_repo.h container_repo_item.h repo_item.h utils.h sys_error.h \
@@ -56,7 +56,7 @@ logger.o: lib/logger.cpp lib/logger.h
 	g++ $(CXXFLAGS)  -c -o $@ lib/logger.cpp
 
 httplib.o: lib/httplib.cc lib/httplib.h
-	g++ $(CXXFLAGS) $(CCMACRO)  -c -o $@ lib/httplib.cc
+	g++ $(CXXFLAGS)  -c -o $@ lib/httplib.cc
 
 test_main.o: test/test_main.cpp test/test_image_repo.h test/test_utils.h \
   test/../image_repo.h test/../config.h test/../lib/json.hpp \
@@ -64,7 +64,7 @@ test_main.o: test/test_main.cpp test/test_image_repo.h test/test_utils.h \
   test/../db_error.h test/../image_repo_item.h test/../utils.h \
   test/../sys_error.h test/test_container_repo.h test/../config.h \
   test/../container_repo.h test/../container_repo_item.h test/../utils.h
-	g++ $(CXXFLAGS)  -c -o $@ $<
+	g++ $(CXXFLAGS) -c -o $@ $<
 
 
 clean:

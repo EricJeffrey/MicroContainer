@@ -31,7 +31,7 @@ static const string DEFAULT_REG_ADDR_ABBR = "ejlzjv4p.mirror.aliyuncs.com";
 // read timeout when pulling image from registry
 static const time_t ReadTimeoutInSec = 30;
 
-static const int FetchBlobMaxRetryTimes = 15;
+static const int FETCH_MAX_RETRY_TIMES = 15;
 
 static const nlohmann::json DEFAULT_CONTAINER_CONF_SPEC =
     "{\"ociVersion\":\"1.0.0\",\"process\":{\"terminal\":true,\"user\":{\"uid\":0,\"gid\":0},"

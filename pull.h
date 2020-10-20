@@ -16,8 +16,6 @@
 #include <string>
 #include <vector>
 
-// TODO should use a specified output stream
-
 enum RegistryEndPoint { CHECK = 0, IMAGE_MANIFESTS, IMAGE_BLOBS };
 
 struct ImageData {

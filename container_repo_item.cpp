@@ -73,7 +73,8 @@ ContainerRepoItem::ContainerRepoItem(const string &itemStr) {
 }
 
 vector<string> ContainerRepoItem::toStringList() {
-    return {containerID, imageID, name, command, timet2Str(created), status.toString()};
+    return {containerID.substr(0, 12), imageID.substr(0, 12), name, command,
+            timet2Str(created),        status.toString()};
 }
 
 string ContainerRepoItem::toDBString() const {

@@ -237,6 +237,27 @@ namespace httplib {
 
 namespace detail {
 
+/*
+ * Backport std::make_unique from C++14.
+ *
+ * NOTE: This code came up with the following stackoverflow post:
+ * https://stackoverflow.com/questions/10149840/c-arrays-and-make-unique
+ *
+ */
+
+template <class T, class... Args>
+typename std::enable_if<!std::is_array<T>::value, std::unique_ptr<T>>::type
+make_unique(Args &&... args) {
+  return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
+template <class T>
+typename std::enable_if<std::is_array<T>::value, std::unique_ptr<T>>::type
+make_unique(std::size_t n) {
+  typedef typename std::remove_extent<T>::type RT;
+  return std::unique_ptr<T>(new RT[n]);
+}
+
 struct ci {
   bool operator()(const std::string &s1, const std::string &s2) const {
     return std::lexicographical_compare(
@@ -317,14 +338,17 @@ public:
                                              ContentReceiver receiver)>;
 
   ContentReader(Reader reader, MultipartReader multipart_reader)
-      : reader_(reader), multipart_reader_(multipart_reader) {}
+      : reader_(std::move(reader)),
+        multipart_reader_(std::move(multipart_reader)) {}
 
   bool operator()(MultipartContentHeader header,
                   ContentReceiver receiver) const {
-    return multipart_reader_(header, receiver);
+    return multipart_reader_(std::move(header), std::move(receiver));
   }
 
-  bool operator()(ContentReceiver receiver) const { return reader_(receiver); }
+  bool operator()(ContentReceiver receiver) const {
+    return reader_(std::move(receiver));
+  }
 
   Reader reader_;
   MultipartReader multipart_reader_;
@@ -475,7 +499,7 @@ public:
 
   void enqueue(std::function<void()> fn) override {
     std::unique_lock<std::mutex> lock(mutex_);
-    jobs_.push_back(fn);
+    jobs_.push_back(std::move(fn));
     cond_.notify_one();
   }
 
@@ -579,7 +603,8 @@ public:
   Server &Options(const char *pattern, Handler handler);
 
   bool set_base_dir(const char *dir, const char *mount_point = nullptr);
-  bool set_mount_point(const char *mount_point, const char *dir);
+  bool set_mount_point(const char *mount_point, const char *dir,
+                       Headers headers = Headers());
   bool remove_mount_point(const char *mount_point);
   void set_file_extension_and_mimetype_mapping(const char *ext,
                                                const char *mime);
@@ -663,9 +688,15 @@ private:
                          ContentReceiver multipart_receiver);
 
   virtual bool process_and_close_socket(socket_t sock);
+  
+  struct MountPointEntry { 
+    std::string mount_point;
+    std::string base_dir;
+    Headers headers;
+  };
+  std::vector<MountPointEntry> base_dirs_;
 
   std::atomic<bool> is_running_;
-  std::vector<std::pair<std::string, std::string>> base_dirs_;
   std::map<std::string, std::string> file_extension_and_mimetype_map_;
   Handler file_request_handler_;
   Handlers get_handlers_;
@@ -697,13 +728,14 @@ enum Error {
   Canceled,
   SSLConnection,
   SSLLoadingCerts,
-  SSLServerVerification
+  SSLServerVerification,
+  UnsupportedMultipartBoundaryChars
 };
 
 class Result {
 public:
-  Result(const std::shared_ptr<Response> &res, Error err)
-      : res_(res), err_(err) {}
+  Result(std::unique_ptr<Response> res, Error err)
+      : res_(std::move(res)), err_(err) {}
   operator bool() const { return res_ != nullptr; }
   bool operator==(std::nullptr_t) const { return res_ == nullptr; }
   bool operator!=(std::nullptr_t) const { return res_ != nullptr; }
@@ -713,7 +745,7 @@ public:
   Error error() const { return err_; }
 
 private:
-  std::shared_ptr<Response> res_;
+  std::unique_ptr<Response> res_;
   Error err_;
 };
 
@@ -770,6 +802,9 @@ public:
   Result Post(const char *path, const MultipartFormDataItems &items);
   Result Post(const char *path, const Headers &headers,
               const MultipartFormDataItems &items);
+  Result Post(const char *path, const Headers &headers,
+              const MultipartFormDataItems &items,
+              const std::string& boundary);
 
   Result Put(const char *path);
   Result Put(const char *path, const std::string &body,
@@ -839,6 +874,10 @@ public:
   void set_proxy_digest_auth(const char *username, const char *password);
 #endif
 
+#ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+  void enable_server_certificate_verification(bool enabled);
+#endif
+
   void set_logger(Logger logger);
 
 protected:
@@ -858,6 +897,8 @@ protected:
                        bool close_connection);
 
   Error get_last_error() const;
+
+  void copy_settings(const ClientImpl &rhs);
 
   // Error state
   mutable Error error_ = Error::Success;
@@ -916,41 +957,11 @@ protected:
   std::string proxy_digest_auth_password_;
 #endif
 
-  Logger logger_;
+#ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+  bool server_certificate_verification_ = true;
+#endif
 
-  void copy_settings(const ClientImpl &rhs) {
-    client_cert_path_ = rhs.client_cert_path_;
-    client_key_path_ = rhs.client_key_path_;
-    connection_timeout_sec_ = rhs.connection_timeout_sec_;
-    read_timeout_sec_ = rhs.read_timeout_sec_;
-    read_timeout_usec_ = rhs.read_timeout_usec_;
-    write_timeout_sec_ = rhs.write_timeout_sec_;
-    write_timeout_usec_ = rhs.write_timeout_usec_;
-    basic_auth_username_ = rhs.basic_auth_username_;
-    basic_auth_password_ = rhs.basic_auth_password_;
-    bearer_token_auth_token_ = rhs.bearer_token_auth_token_;
-#ifdef CPPHTTPLIB_OPENSSL_SUPPORT
-    digest_auth_username_ = rhs.digest_auth_username_;
-    digest_auth_password_ = rhs.digest_auth_password_;
-#endif
-    keep_alive_ = rhs.keep_alive_;
-    follow_location_ = rhs.follow_location_;
-    tcp_nodelay_ = rhs.tcp_nodelay_;
-    socket_options_ = rhs.socket_options_;
-    compress_ = rhs.compress_;
-    decompress_ = rhs.decompress_;
-    interface_ = rhs.interface_;
-    proxy_host_ = rhs.proxy_host_;
-    proxy_port_ = rhs.proxy_port_;
-    proxy_basic_auth_username_ = rhs.proxy_basic_auth_username_;
-    proxy_basic_auth_password_ = rhs.proxy_basic_auth_password_;
-    proxy_bearer_token_auth_token_ = rhs.proxy_bearer_token_auth_token_;
-#ifdef CPPHTTPLIB_OPENSSL_SUPPORT
-    proxy_digest_auth_username_ = rhs.proxy_digest_auth_username_;
-    proxy_digest_auth_password_ = rhs.proxy_digest_auth_password_;
-#endif
-    logger_ = rhs.logger_;
-  }
+  Logger logger_;
 
 private:
   socket_t create_client_socket() const;
@@ -960,7 +971,7 @@ private:
   bool handle_request(Stream &strm, const Request &req, Response &res,
                       bool close_connection);
   void stop_core();
-  std::shared_ptr<Response> send_with_content_provider(
+  std::unique_ptr<Response> send_with_content_provider(
       const char *method, const char *path, const Headers &headers,
       const std::string &body, size_t content_length,
       ContentProvider content_provider, const char *content_type);
@@ -1029,6 +1040,9 @@ public:
   Result Post(const char *path, const MultipartFormDataItems &items);
   Result Post(const char *path, const Headers &headers,
               const MultipartFormDataItems &items);
+  Result Post(const char *path, const Headers &headers,
+              const MultipartFormDataItems &items,
+              const std::string& boundary);
   Result Put(const char *path);
   Result Put(const char *path, const std::string &body,
              const char *content_type);
@@ -1096,16 +1110,18 @@ public:
   void set_proxy_digest_auth(const char *username, const char *password);
 #endif
 
+#ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+  void enable_server_certificate_verification(bool enabled);
+#endif
+
   void set_logger(Logger logger);
 
   // SSL
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
-  Client &set_ca_cert_path(const char *ca_cert_file_path,
-                           const char *ca_cert_dir_path = nullptr);
+  void set_ca_cert_path(const char *ca_cert_file_path,
+                        const char *ca_cert_dir_path = nullptr);
 
-  Client &set_ca_cert_store(X509_STORE *ca_cert_store);
-
-  Client &enable_server_certificate_verification(bool enabled);
+  void set_ca_cert_store(X509_STORE *ca_cert_store);
 
   long get_openssl_verify_result() const;
 
@@ -1113,7 +1129,7 @@ public:
 #endif
 
 private:
-  std::shared_ptr<ClientImpl> cli_;
+  std::unique_ptr<ClientImpl> cli_;
 
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
   bool is_ssl_ = false;
@@ -1163,8 +1179,6 @@ public:
 
   void set_ca_cert_store(X509_STORE *ca_cert_store);
 
-  void enable_server_certificate_verification(bool enabled);
-
   long get_openssl_verify_result() const;
 
   SSL_CTX *ssl_context() const;
@@ -1195,8 +1209,6 @@ private:
 
   std::string ca_cert_file_path_;
   std::string ca_cert_dir_path_;
-  X509_STORE *ca_cert_store_ = nullptr;
-  bool server_certificate_verification_ = true;
   long verify_result_ = 0;
 
   friend class ClientImpl;

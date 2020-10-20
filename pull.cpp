@@ -40,7 +40,6 @@ TupStrIntBool getManifest(httplib::Client &client, const string &imgName, const 
     return std::make_tuple(resp->body, 200, false);
 }
 
-// FIXME Fetch image v2 manifest failed: SignatureDoesNotMatch
 // throw httplib.client error
 void fetchBlobs(httplib::Client &client, const ImageData &imageData, const string &imgName) {
     int blobSetSz = imageData.layerBlobSumSet.size(), blobCntK = 1;
@@ -53,7 +52,7 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
         usleep(800000);
         const string blobAddr = getRegistryPath(RegistryEndPoint::IMAGE_BLOBS, {imgName, blobSum});
         int cntRetry = 0;
-        for (; cntRetry < FetchBlobMaxRetryTimes; cntRetry++) {
+        for (; cntRetry < FETCH_MAX_RETRY_TIMES; cntRetry++) {
             usleep(80000);
             bool ok = true;
             size_t totalSize = 0, receivedSize = 0;
@@ -63,7 +62,7 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
                 blobAddr.c_str(), httplib::Headers(),
                 [&](const httplib::Response &tmpResp) {
                     if (tmpResp.status != 200 && tmpResp.status / 100 != 3) {
-                        loggerInstance()->warn("Invalid response code, retrying");
+                        // loggerInstance()->warn("Invalid response code, retrying");
                         ok = false;
                         return false;
                     }
@@ -73,7 +72,6 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
                 [&](const char *data, size_t dataLength) {
                     layerFStream.write(data, dataLength);
                     receivedSize += dataLength;
-                    // todo change to logger::raw or something like that
                     std::cout << "\r" << blobCntK << "/" << blobSetSz << " "
                               << blobSum.substr(7, 16) << ": "
                               << receivedSize * 1.0 / totalSize * 100 << "%";
@@ -84,7 +82,7 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
             if (ok)
                 break;
         }
-        if (cntRetry >= FetchBlobMaxRetryTimes) {
+        if (cntRetry >= FETCH_MAX_RETRY_TIMES) {
             loggerInstance()->error("Fetch image layer failed: Exceed max retry times");
             throw runtime_error("exceed max retry times");
         }
@@ -98,58 +96,58 @@ PairIntJson fetchV2Config(httplib::Client &client, const ImageData &imageData,
                           const string &imgName, const string &tag) {
     using std::make_pair;
     auto errorPair = make_pair(-1, "");
-    // get config directly
-    auto imgConfBlobResp = client.Get(
-        getRegistryPath(RegistryEndPoint::IMAGE_BLOBS, {imgName, imageData.confBlobDigest})
-            .c_str());
-    if (imgConfBlobResp.error()) {
-        loggerInstance()->error("Get image configuration failed:", imgConfBlobResp.error());
-        return errorPair;
-    }
-    if (imgConfBlobResp->status == 200) {
-        try {
-            auto resJson = nlohmann::json::parse(imgConfBlobResp->body);
-            return make_pair(0, nlohmann::json::parse(imgConfBlobResp->body));
-        } catch (const std::exception &e) {
-            loggerInstance()->error("Parsing v2 configuration failed:", e.what());
+    string path =
+        getRegistryPath(RegistryEndPoint::IMAGE_BLOBS, {imgName, imageData.confBlobDigest});
+    // get config directly, retry when 403(SignatureMisMatch)
+    for (size_t i = 0; i < FETCH_MAX_RETRY_TIMES; i++) {
+        auto resp = client.Get(path.c_str());
+        if (resp.error()) {
+            loggerInstance()->error("Get image configuration failed:", resp.error());
             return errorPair;
         }
-    } else if (imgConfBlobResp->status == 404) {
-        // fall back to v1
-        auto imgV1ManifestResp = client.Get(
-            getRegistryPath(RegistryEndPoint::IMAGE_MANIFESTS, {imgName, tag}).c_str(),
-            httplib::Headers(
-                {make_pair("Accept", "application/vnd.docker.distribution.manifest.v1+json")}));
-        if (imgV1ManifestResp.error()) {
-            loggerInstance()->error("Fetch image v1 manifest failed:", imgV1ManifestResp.error());
-            return errorPair;
-        }
-        if (imgV1ManifestResp->status == 200) {
+        if (resp->status == 200) {
             try {
-                using nlohmann::json;
-                return make_pair(
-                    0, json::parse(imgV1ManifestResp->body)["history"][0]["v1Compatibility"]);
+                return make_pair(0, nlohmann::json::parse(resp->body));
             } catch (const std::exception &e) {
-                loggerInstance()->error("Parsing v1 manifest failed:", e.what());
+                loggerInstance()->error("Parsing v2 configuration failed:", e.what());
                 return errorPair;
             }
+        } else if (resp->status == 404) {
+            // fall back to v1
+            auto imgV1ManifestResp = client.Get(
+                getRegistryPath(RegistryEndPoint::IMAGE_MANIFESTS, {imgName, tag}).c_str(),
+                httplib::Headers(
+                    {make_pair("Accept", "application/vnd.docker.distribution.manifest.v1+json")}));
+            if (imgV1ManifestResp.error()) {
+                loggerInstance()->error("Fetch image v1 manifest failed:",
+                                        imgV1ManifestResp.error());
+                return errorPair;
+            }
+            if (imgV1ManifestResp->status == 200) {
+                try {
+                    return make_pair(0,
+                                     nlohmann::json::parse(
+                                         imgV1ManifestResp->body)["history"][0]["v1Compatibility"]);
+                } catch (const std::exception &e) {
+                    loggerInstance()->error("Parsing v1 manifest failed:", e.what());
+                    return errorPair;
+                }
+            } else {
+                loggerInstance()->error("Fetch image v1 manifst failed, invalid response code:",
+                                        imgV1ManifestResp->status);
+                return errorPair;
+            }
+        } else if (resp->status == 403 &&
+                   resp->body.find("SignatureDoesNotMatch") != string::npos) {
+            continue;
         } else {
-            loggerInstance()->error("Fetch image v1 manifst failed, invalid response code:",
-                                    imgV1ManifestResp->status);
+            loggerInstance()->error("Fetch image v2 config failed, invalid response code:",
+                                    resp->status);
             return errorPair;
         }
-    } else {
-        loggerInstance()->error("Fetch image v2 manifest failed, invalid response code:",
-                                imgConfBlobResp->status);
-        loggerInstance()->debug("Response: ", [&imgConfBlobResp]() {
-            string res = "{ ";
-            for (auto &&[key, value] : imgConfBlobResp->headers)
-                res += "{" + key + ", " + value + "},";
-            res += " }\n\t" + imgConfBlobResp->body;
-            return res;
-        }());
-        return errorPair;
     }
+    loggerInstance()->error("Fetch image v2 config failed, exceed max retry times");
+    return errorPair;
 }
 
 // No throw
@@ -174,13 +172,15 @@ int pull(const string &imgName, const string &tag, const string &regAddr) noexce
     // fetch from registry
     loggerInstance()->info("Fetching image", imgName + ":" + tag);
     httplib::Client client(regAddr.c_str());
+    client.set_ca_cert_path("/etc/pki/tls/certs/ca-bundle.crt");
     client.set_read_timeout(ReadTimeoutInSec);
+    client.set_follow_location(true);
     // check connection
     try {
         loggerInstance()->info("Connecting to registry:", regAddr);
         auto resp = client.Get(getRegistryPath(RegistryEndPoint::CHECK).c_str());
         if (resp.error() != httplib::Success) {
-            loggerInstance()->error("Connect to registry:", regAddr, "failed");
+            loggerInstance()->error("Connect to registry:", regAddr, "failed,", resp.error());
             return -1;
         }
         if (resp->status != 200) {
@@ -197,15 +197,15 @@ int pull(const string &imgName, const string &tag, const string &regAddr) noexce
     loggerInstance()->info("Fetching image manifest");
     string manifestRaw;
     {
-        auto getManifestRes = getManifest(client, imgName, tag);
-        if (get<2>(getManifestRes) || get<1>(getManifestRes) != 200) {
-            if (get<2>(getManifestRes))
+        auto [res, respCode, err] = getManifest(client, imgName, tag);
+        if (err || respCode != 200) {
+            if (err)
                 loggerInstance()->error("Fetch image manifest from registry:", regAddr, "failed");
             else
                 loggerInstance()->info("Image:", imgName + ":" + tag, "not found");
             return -1;
         }
-        manifestRaw = get<0>(getManifestRes);
+        manifestRaw = res;
     }
 
     // parse manifest
@@ -225,7 +225,6 @@ int pull(const string &imgName, const string &tag, const string &regAddr) noexce
     // fetch blobs
     loggerInstance()->info("Fetching image layers");
     try {
-        client.set_follow_location(true);
         std::cout << std::fixed << std::setprecision(2);
         fetchBlobs(client, imageData, imgName);
     } catch (const std::exception &e) {
@@ -261,7 +260,6 @@ int pull(const string &imgName, const string &tag, const string &regAddr) noexce
     loggerInstance()->info("Fetching image configuration");
     if (manitSchemaVer == 2) {
         // get config directly
-        client.set_follow_location(true);
         auto fetchConfigRes = fetchV2Config(client, imageData, imgName, tag);
         if (fetchConfigRes.first != 0)
             return -1;
