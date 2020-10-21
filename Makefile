@@ -1,8 +1,8 @@
 CXXFLAGS=-g -Wall -Ilib -D CPPHTTPLIB_OPENSSL_SUPPORT --std=c++17
 LLIB=-lssl -lz -lcrypto -lpthread -larchive -lleveldb
 
-OBJS=image_ls.o container_ls.o container_repo.o container_repo_item.o create.o extract.o\
-  image_repo.o image_repo_item.o network.o pull.o repo.o utils.o logger.o httplib.o
+OBJS=cleanup.o container_ls.o container_repo.o container_repo_item.o create.o extract.o image_ls.o\
+ image_repo.o image_repo_item.o network.o pull.o repo.o start.o utils.o logger.o httplib.o
 TARGET=microc
 TESTTARGET=test.out
 
@@ -11,8 +11,8 @@ TESTTARGET=test.out
 main: main.o $(OBJS)
 	g++ $(CXXFLAGS) -o $(TARGET) $(LLIB) main.o $(OBJS)
 
-test: test_main.o $(OBJS)
-	g++ $(CXXFLAGS) -o $(TESTTARGET) $(LLIB) test_main.o $(OBJS)
+cleanup.o: cleanup.cpp cleanup.h config.h lib/json.hpp lib/logger.h \
+ network.h repo.h db_error.h repo_item.h
 
 container_ls.o: container_ls.cpp container_ls.h config.h lib/json.hpp \
  container_repo.h container_repo_item.h repo_item.h utils.h sys_error.h \
@@ -39,16 +39,22 @@ image_repo.o: image_repo.cpp image_repo.h config.h lib/json.hpp \
 image_repo_item.o: image_repo_item.cpp image_repo_item.h repo_item.h \
  utils.h sys_error.h
 
-main.o: main.cpp container_ls.h create.h image_ls.h lib/CLI11.hpp pull.h \
- config.h lib/json.hpp lib/httplib.h lib/logger.h utils.h sys_error.h
+main.o: main.cpp container_ls.h create.h image_ls.h lib/CLI11.hpp \
+ network.h repo.h db_error.h repo_item.h pull.h config.h lib/json.hpp \
+ lib/httplib.h lib/logger.h utils.h sys_error.h
 
-network.o: network.cpp network.h utils.h sys_error.h lib/logger.h
+network.o: network.cpp config.h lib/json.hpp lib/logger.h network.h \
+ repo.h db_error.h repo_item.h utils.h sys_error.h
 
 pull.o: pull.cpp pull.h config.h lib/json.hpp lib/httplib.h lib/logger.h \
  utils.h sys_error.h extract.h image_repo.h image_repo_item.h repo_item.h \
  repo.h db_error.h
 
 repo.o: repo.cpp repo.h db_error.h repo_item.h
+
+start.o: start.cpp config.h lib/json.hpp container_repo.h \
+ container_repo_item.h repo_item.h utils.h sys_error.h repo.h db_error.h \
+ lib/logger.h network.h
 
 utils.o: utils.cpp utils.h sys_error.h lib/logger.h
 

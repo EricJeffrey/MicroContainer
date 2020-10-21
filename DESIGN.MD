@@ -91,7 +91,10 @@ todo: 实现一个简易的conmon - micromon
 
 ### create
 
-`create imgId name`，使用镜像创建容器。获取镜像配置文件，生成容器OCI配置文件，生成lower目录文件，创建待挂载目录，更新容器数据库，更新镜像数据库
+`create imgId name`，使用镜像创建容器。获取镜像配置文件，生成容器OCI配置文件，生成lower目录文件，创建待挂载目录，更新容器数据库，更新镜像数据库。生成容器OCI配置文件时需要:
+
+- 更新OCI配置netns的文件路径path
+- 更新命令、环境、hostname
 
 ### container ls
 
@@ -99,15 +102,15 @@ todo: 实现一个简易的conmon - micromon
 
 ### container rm
 
-`container rm name/ID`，删除容器目录、OCI配置文件、lower文件，更新容器、镜像数据库
+`container rm name/ID`，删除容器目录、OCI配置文件、lower文件，更新容器、镜像数据库。
+
 
 ### start
 
 `start name/ID`，启动容器，表现为容器内进程执行，具体步骤:
 
-- 创建netns，获得绑定的文件
+- 创建netns
 - 配置netns内的路由表、网关、端口映射
-- 更新OCI配置netns的文件路径path
 - 读取lower文件，挂载目录
 - 调用`microcmon`启动容器
   - 配置容器退出后的清理程序 - [cleanup](#cleanup)
@@ -124,7 +127,7 @@ todo: 实现一个简易的conmon - micromon
 
 ### stop
 
-`stop name/ID`，停止容器。获取容器进程PID，发送`SIGTERM`信号，超时后判断`/proc/PID`是否存在(是否已经结束)，若存在，则发送`SIGKILL`信号。容器进程结束后microcmon会自动调用 [cleanup](#cleanup) 更新容器数据库。
+`stop name/ID`，停止容器。获取容器进程PID，发送`SIGTERM`信号，超时后判断`/proc/PID`是否存在(是否已经结束)，若存在，则发送`SIGKILL`信号。容器进程结束后conmon会自动调用 [cleanup](#cleanup) 更新容器数据库。
 
 ### cleanup
 

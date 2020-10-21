@@ -1,8 +1,12 @@
 #if !defined(NETWORK_CPP)
 #define NETWORK_CPP
 
-#include "network.h"
+#include <bitset>
+#include <filesystem>
+
+#include "config.h"
 #include "lib/logger.h"
+#include "network.h"
 #include "utils.h"
 
 /**
@@ -109,9 +113,9 @@ bool createBridge() noexcept {
 
 std::tuple<bool, string, string> createContNet(const string &contId, const string &ip,
                                                int ipPreLen) noexcept {
-    const string nsName = NET_NS_PATH_PREFIX + contId.substr(0, 8);
-    const string veth1 = "veth" + genRandomStr(NET_DEV_NAME_SUFFIX_LEN);
-    const string veth2 = "veth" + genRandomStr(NET_DEV_NAME_SUFFIX_LEN);
+    const string nsName = NET_NS_PATH_PREFIX + contId.substr(0, NET_DEV_NS_NAME_SUFFIX_LEN);
+    const string veth1 = "veth" + genRandomStr(NET_DEV_NS_NAME_SUFFIX_LEN);
+    const string veth2 = "veth" + genRandomStr(NET_DEV_NS_NAME_SUFFIX_LEN);
     const string gateway = ip.substr(0, ip.find_last_of('.')) + ".1";
     const bool err = true;
     try {
@@ -144,21 +148,45 @@ std::tuple<bool, string, string> createContNet(const string &contId, const strin
     return {err, veth1, veth2};
 }
 
-void cleanupContNet(const string &contId, const std::pair<string, string> &vethPair) noexcept {
-    const string nsName = NET_NS_PATH_PREFIX + contId.substr(0, 8);
-    vector<vector<string>> cmds = {
-        {ipCmd, "netns", "del", nsName},
-        {ipCmd, "link", "set", vethPair.first, "nomaster"},
-        {ipCmd, "link", "delete", vethPair.first},
-    };
+void cleanupContNet(const string &contId) noexcept {
+    const string nsName = NET_NS_PATH_PREFIX + contId.substr(0, NET_DEV_NS_NAME_SUFFIX_LEN);
     try {
-        for (auto &&cmd : cmds)
-            fork_exec_wait(ipPath, cmd);
+        fork_exec_wait(ipPath, {ipCmd, "netns", "del", nsName});
         fork_exec_wait("/usr/bin/umount", {"umount", "/run/netns/" + nsName});
         fork_exec_wait("rm", {"/run/netns/" + nsName});
     } catch (const std::exception &e) {
         loggerInstance()->error("Cleanup container network failed:", e.what());
     }
+}
+
+string IpRepo::useOne() {
+    using std::bitset;
+    checkAndThrow();
+    constexpr int ipaddrNum = (1 << VETH_IP_PREFIX_LEN);
+    bitset<ipaddrNum> used;
+    string value;
+    auto status = db->Get(leveldb::ReadOptions(), IP_REPO_KEY, &value);
+    if (status.ok())
+        used = bitset<ipaddrNum>(value);
+    else if (!status.IsNotFound())
+        throw DBError("Failed to read ip address repo:" + status.ToString());
+    // only check high/low 8 bit, may fail if VETH_IP_PREFIX_LEN not 16
+    for (size_t addr = 0; addr < used.size(); addr++) {
+        // cannot use .0.* or .255.* or .*.0 or .*.255
+        if ((addr & 0xff) == 0 || (addr & 0xff) == 0xff)
+            continue;
+        if (((addr >> 8) & 0xff) == 0 || ((addr >> 8) & 0xff) == 0xff)
+            continue;
+        if (!used[addr]) {
+            used.set(addr);
+            auto sta = db->Put(leveldb::WriteOptions(), IP_REPO_KEY, used.to_string());
+            if (!sta.ok())
+                throw DBError("Failed to update ip address repo:" + sta.ToString());
+            return string(VETH_IP_PREFIX) + "." + std::to_string(addr & 0xff) + "." +
+                   std::to_string((addr >> 8) & 0xff);
+        }
+    }
+    throw NoAvailIPError("No availiable ip in repo");
 }
 
 #endif // NETWORK_CPP

@@ -10,11 +10,9 @@
 #include <string>
 using std::string;
 
-typedef std::function<void(int, const string &, const string &)> RepoIterFunc;
+typedef std::function<bool(int, const string &, const string &)> RepoIterFunc;
 
-/**
- * @brief Provide basic RAII levelDB database manipulate func
- */
+// Basic RAII levelDB database manager
 class Repo {
 protected:
     leveldb::DB *db;
@@ -23,7 +21,7 @@ protected:
      * @brief check is database has been opened
      * @exception DBError
      */
-    void checkAndThrow() {
+    inline void checkAndThrow() {
         if (db == nullptr)
             throw DBError("database not open");
     }
@@ -83,6 +81,10 @@ public:
      * @exception DBError
      */
     bool contains(const string &id);
+    /**
+     * @brief Iterate a repo, stop iterate if job return true
+     * @param job function object: bool(int index, const string &key, const string& value)
+     */
     void foreach (const RepoIterFunc &job) const;
 };
 

@@ -75,7 +75,8 @@ void Repo::foreach (const RepoIterFunc &job) const {
     std::unique_ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
     int index = 0;
     for (it->SeekToFirst(); it->Valid(); it->Next()) {
-        job(index, it->key().ToString(), it->value().ToString());
+        if (job(index, it->key().ToString(), it->value().ToString()))
+            break;
         index++;
     }
 }

@@ -25,6 +25,7 @@ std::ostream &operator<<(std::ostream &out, const ContainerRepo &repo) {
     lines.emplace_back(ContainerRepoItem::ATTR_TAG_LIST);
     repo.foreach ([&](int i, const string &key, const string &value) {
         lines.emplace_back(ContainerRepoItem(value).toStringList());
+        return false;
     });
     lineupPrint(out, lines);
     return out;

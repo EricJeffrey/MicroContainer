@@ -8,22 +8,16 @@
 using std::runtime_error;
 
 string ContainerRepoItem::Status::toString() const {
-    string res;
     switch (contStatus) {
         case CREATED:
-            res += "CREATED AT";
-            break;
+            return "CREATED";
         case RUNNING:
-            res += "UP   SINCE";
-            break;
+            return "UP   SINCE" + timet2Str(time);
         case STOPPED:
-            res += "EXITED  AT";
-            break;
+            return "EXITED  AT" + timet2Str(time);
         default:
-            res += "INVALID";
-            break;
+            return "INVALID";
     }
-    return res + " " + timet2Str(time);
 }
 
 string ContainerRepoItem::Status::toDBString() const {

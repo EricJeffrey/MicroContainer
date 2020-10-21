@@ -14,7 +14,7 @@ enum ContainerStatus { CREATED, RUNNING, STOPPED, INVALID };
 
 struct ContainerRepoItem : public RepoItem {
     struct Status : public RepoItem {
-        static const char SEP = '_';
+        static constexpr char SEP = '_';
         ContainerStatus contStatus;
         time_t time;
 
@@ -29,18 +29,20 @@ struct ContainerRepoItem : public RepoItem {
             this->contStatus = contStatus, this->time = time;
         }
     };
-    static const char SEP = '|';
+    static constexpr char SEP = '|';
     static vector<string> ATTR_TAG_LIST;
 
     string containerID, imageID, name, command;
     time_t created;
     Status status;
 
+    ContainerRepoItem() {}
     ContainerRepoItem(const string &id, const string &imgId, const string &name, const string &cmd,
                       time_t created, Status status)
         : containerID(id), imageID(imgId), name(name), command(cmd), created(created),
           status(status) {}
     ContainerRepoItem(const string &str);
+
     string toDBString() const override;
     vector<string> toStringList();
 

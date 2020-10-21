@@ -21,7 +21,7 @@ void test_container_repo() {
                     string("1111"), "ContainerRepoItem.extractImgID");
     {
         ContainerRepo repo;
-        repo.open(CONTAINER_REPO_DB_PATH);
+        repo.open(CONTAINER_REPO_DB_PATH());
         for (auto &&item : items)
             repo.add(item.containerID, item);
         CHECK_AND_THROW(repo.contains("cont111"), true, "ContainerRepo.contains");

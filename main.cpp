@@ -6,8 +6,8 @@
 #include "create.h"
 #include "image_ls.h"
 #include "lib/CLI11.hpp"
-#include "pull.h"
 #include "network.h"
+#include "pull.h"
 
 #include <filesystem>
 
@@ -16,8 +16,8 @@ using std::filesystem::is_directory, std::filesystem::create_directories;
 
 // Things to do when first run: creating dir, init logger, create bridge
 void init() {
-    for (auto &&path : {IMAGE_DIR_PATH, CONTAINER_DIR_PATH, OVERLAY_DIR_PATH, LAYER_FILE_DIR_PATH,
-                        REPO_DB_DIR_PATH})
+    for (auto &&path : {IMAGE_DIR_PATH(), CONTAINER_DIR_PATH(), OVERLAY_DIR_PATH(),
+                        LAYER_FILE_DIR_PATH(), string(REPO_DB_DIR_PATH)})
         if (!is_directory(path))
             create_directories(path);
     Logger::init(cout);

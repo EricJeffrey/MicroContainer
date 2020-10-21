@@ -60,7 +60,7 @@ int fork_exec_wait(const string &filePath, const vector<string> &args, bool noSt
 
 string genRandomStr(int len) {
     string res(size_t(len), '0');
-    static const char alphanum[] = "0123456789"
+    static constexpr char alphanum[] = "0123456789"
                                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                    "abcdefghijklmnopqrstuvwxyz";
     static std::default_random_engine generator;

@@ -8,32 +8,47 @@
 using std::string;
 
 // all stored in here
-static const string REPO_DIR_PATH = "/home/eric/coding/MicroContainer/build/";
+static constexpr char REPO_DIR_PATH[] = "/home/eric/coding/MicroContainer/build/";
 
-static const string REPO_DB_DIR_PATH = REPO_DIR_PATH + "db/";
-static const string IMG_ID_REPO_DB_PATH = REPO_DB_DIR_PATH + "db_imgname2id";
-static const string IMAGE_REPO_DB_PATH = REPO_DB_DIR_PATH + "db_imagerepo";
-static const string CONTAINER_REPO_DB_PATH = REPO_DB_DIR_PATH + "db_containerrepo";
+static constexpr char REPO_DB_DIR_PATH[] = "/home/eric/coding/MicroContainer/build/db/";
+static constexpr char IMGID_REPO_DB_NAME[] = "db_imgname2id";
+static constexpr char IMAGE_REPO_DB_NAME[] = "db_imagerepo";
+static constexpr char CONTAINER_REPO_DB_NAME[] = "db_containerrepo";
+static constexpr char IPADDR_REPO_DB_NAME[] = "db_ipaddr";
 
-static const string IMAGE_DIR_PATH = REPO_DIR_PATH + "images/";
-static const string LAYER_FILE_DIR_PATH = REPO_DIR_PATH + "layers/";
-static const string OVERLAY_DIR_PATH = REPO_DIR_PATH + "overlay/";
-static const string CONTAINER_DIR_PATH = REPO_DIR_PATH + "containers/";
+inline static string IMG_ID_REPO_DB_PATH() { return string(REPO_DB_DIR_PATH) + IMGID_REPO_DB_NAME; }
+inline static string IMAGE_REPO_DB_PATH() { return string(REPO_DB_DIR_PATH) + IMAGE_REPO_DB_NAME; }
+inline static string CONTAINER_REPO_DB_PATH() {
+    return string(REPO_DB_DIR_PATH) + CONTAINER_REPO_DB_NAME;
+}
+inline static string IPADDR_REPO_DB_PATH() {
+    return string(REPO_DB_DIR_PATH) + IPADDR_REPO_DB_NAME;
+}
 
-static const string CONTAINER_RT_PATH = "/usr/bin/crun";
-static const string CONTAINER_RT_NAME = "crun";
+static constexpr char IMAGE_DIR_NAME[] = "images/";
+static constexpr char LAYER_FILE_DIR_NAME[] = "layers/";
+static constexpr char OVERLAY_DIR_NAME[] = "overlay/";
+static constexpr char CONTAINER_DIR_NAME[] = "containers/";
+
+inline static string IMAGE_DIR_PATH() { return string(REPO_DIR_PATH) + IMAGE_DIR_NAME; }
+inline static string LAYER_FILE_DIR_PATH() { return string(REPO_DIR_PATH) + LAYER_FILE_DIR_NAME; }
+inline static string OVERLAY_DIR_PATH() { return string(REPO_DIR_PATH) + OVERLAY_DIR_NAME; }
+inline static string CONTAINER_DIR_PATH() { return string(REPO_DIR_PATH) + CONTAINER_DIR_NAME; }
+
+static constexpr char CONTAINER_RT_PATH[] = "/usr/bin/crun";
+static constexpr char CONTAINER_RT_NAME[] = "crun";
 
 // registry address
-static const string DEFAULT_REG_ADDR = "https://ejlzjv4p.mirror.aliyuncs.com";
-static const string DEFAULT_REG_ADDR_ABBR = "ejlzjv4p.mirror.aliyuncs.com";
-// static const string DEFAULT_REG_ADDR = "https://docker.mirrors.ustc.edu.cn";
+static constexpr char DEFAULT_REG_ADDR[] = "https://ejlzjv4p.mirror.aliyuncs.com";
+static constexpr char DEFAULT_REG_ADDR_ABBR[] = "ejlzjv4p.mirror.aliyuncs.com";
+// static constexpr char DEFAULT_REG_ADDR[] = "https://docker.mirrors.ustc.edu.cn";
 
 // read timeout when pulling image from registry
-static const time_t READ_TIME_OUT_SEC = 30;
+static constexpr time_t READ_TIME_OUT_SEC = 30;
 
-static const int FETCH_MAX_RETRY_TIMES = 15;
+static constexpr int FETCH_MAX_RETRY_TIMES = 15;
 
-static const nlohmann::json DEFAULT_CONTAINER_CONF_SPEC =
+static constexpr char DEFAULT_CONTAINER_CONF_SPEC[] =
     "{\"ociVersion\":\"1.0.0\",\"process\":{\"terminal\":true,\"user\":{\"uid\":0,\"gid\":0},"
     "\"args\":[\"sh\"],\"env\":[\"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/"
     "bin\",\"TERM=xterm\"],\"cwd\":\"/"
@@ -130,6 +145,6 @@ static const nlohmann::json DEFAULT_CONTAINER_CONF_SPEC =
     "\"SCMP_ACT_ALLOW\"}]},\"maskedPaths\":[\"/proc/kcore\",\"/proc/latency_stats\",\"/proc/"
     "timer_list\",\"/proc/timer_stats\",\"/proc/sched_debug\",\"/sys/"
     "firmware\"],\"readonlyPaths\":[\"/proc/asound\",\"/proc/bus\",\"/proc/fs\",\"/proc/irq\",\"/"
-    "proc/sys\",\"/proc/sysrq-trigger\"]}}"_json;
+    "proc/sys\",\"/proc/sysrq-trigger\"]}}";
 
 #endif // CONFIG_H

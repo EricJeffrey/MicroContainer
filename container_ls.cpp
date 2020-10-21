@@ -12,7 +12,7 @@
 void listContainer(bool all) noexcept {
     try {
         ContainerRepo repo;
-        repo.open(CONTAINER_REPO_DB_PATH);
+        repo.open(CONTAINER_REPO_DB_PATH());
         if (all) {
             std::cout << repo;
         } else {
@@ -22,6 +22,7 @@ void listContainer(bool all) noexcept {
                 ContainerRepoItem &&item = ContainerRepoItem(value);
                 if (item.status.contStatus == RUNNING)
                     lines.emplace_back(item.toStringList());
+                return false;
             });
             lineupPrint(std::cout, lines);
         }

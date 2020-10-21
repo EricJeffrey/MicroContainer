@@ -30,7 +30,7 @@ void generateSpecConf(const string &dirPath) {
 std::optional<string> checkImgExist(const string &imgName) {
 
     ImageRepo imgRepo;
-    imgRepo.open(IMAGE_REPO_DB_PATH);
+    imgRepo.open(IMAGE_REPO_DB_PATH());
     size_t pos = imgName.find(':');
     if (pos != imgName.npos) {
         const string name = imgName.substr(0, pos), tag = imgName.substr(pos + 1);
@@ -56,24 +56,24 @@ vector<string> getImgLayers(const string &imgId) {
     return resLayers;
 }
 
-// make id/[merged, work, diff] id/lower
+// make id/[merged, work, diff], id/lower
 void prepareContDirs(const string &id, const vector<string> &layers) {
-    if (mkdir((CONTAINER_DIR_PATH + id).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1) {
-        loggerInstance()->sysError(errno, "Call to mkdir:", CONTAINER_DIR_PATH + id, "failed");
+    if (mkdir((CONTAINER_DIR_PATH() + id).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1) {
+        loggerInstance()->sysError(errno, "Call to mkdir:", CONTAINER_DIR_PATH() + id, "failed");
         throw runtime_error("call to mkdir failed");
     }
     // make dirs
-    vector<string> dirNames({"merged", "work", "diff"});
+    vector<string> dirNames({"/merged", "/work", "/diff", "/userdata"});
     for (auto &&name : dirNames) {
-        if (mkdir((CONTAINER_DIR_PATH + id + "/" + name).c_str(),
+        if (mkdir((CONTAINER_DIR_PATH() + id + name).c_str(),
                   S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) == -1) {
-            loggerInstance()->sysError(errno, "Call to mkdir:", CONTAINER_DIR_PATH + id + "/" + name,
+            loggerInstance()->sysError(errno, "Call to mkdir:", CONTAINER_DIR_PATH() + id + name,
                                        "failed");
             throw runtime_error("call to mkdir failed");
         }
     }
     // make lower file
-    ofstream lowerOFS(CONTAINER_DIR_PATH + id + "/lower");
+    ofstream lowerOFS(CONTAINER_DIR_PATH() + id + "/lower");
     string ss;
     for (size_t i = 0; i < layers.size(); i++) {
         if (i != 0)
@@ -86,7 +86,7 @@ void prepareContDirs(const string &id, const vector<string> &layers) {
 
 // using default spec config and update `env, args, hostname, rootfs.path, netns`
 nlohmann::json mkContSpecConfig(const string &id, const nlohmann::json &imgContConf) {
-    nlohmann::json contSpecConfig = DEFAULT_CONTAINER_CONF_SPEC;
+    nlohmann::json contSpecConfig = nlohmann::json::parse(DEFAULT_CONTAINER_CONF_SPEC);
     // env
     contSpecConfig["process"]["env"] = imgContConf["Env"];
     // args
@@ -99,11 +99,11 @@ nlohmann::json mkContSpecConfig(const string &id, const nlohmann::json &imgContC
     // hostname
     contSpecConfig["hostname"] = id.substr(0, 12);
     // rootfs.path
-    contSpecConfig["root"]["path"] = CONTAINER_DIR_PATH + id + "/merged";
+    contSpecConfig["root"]["path"] = CONTAINER_DIR_PATH() + id + "/merged";
     // netns
     for (auto &&ns : contSpecConfig["linux"]["namespaces"]) {
         if (ns["type"].get<string>() == "network") {
-            ns["path"] = NET_NS_PATH_PREFIX + id;
+            ns["path"] = NET_NS_PATH_PREFIX + id.substr(0, NET_DEV_NS_NAME_SUFFIX_LEN);
             break;
         }
     }
@@ -116,7 +116,7 @@ void createContainer(const string &imgName, const string &name) noexcept {
         // check local existence
         {
             ContainerRepo repo;
-            repo.open(CONTAINER_REPO_DB_PATH);
+            repo.open(CONTAINER_REPO_DB_PATH());
             if (repo.contains(containerId)) {
                 loggerInstance()->info("container:", name, "exists");
                 return;
@@ -133,11 +133,10 @@ void createContainer(const string &imgName, const string &name) noexcept {
         }
         auto contSpecConfig = mkContSpecConfig(containerId, getImgContConfig(imgId));
         prepareContDirs(containerId, getImgLayers(imgId));
-        createFile(CONTAINER_DIR_PATH + containerId + "/config.json", contSpecConfig.dump(4));
-        // update repo info {id: {name, imageid, state:created, createdTime:now}}
+        createFile(CONTAINER_DIR_PATH() + containerId + "/config.json", contSpecConfig.dump(4));
         {
             ContainerRepo repo;
-            repo.open(CONTAINER_REPO_DB_PATH);
+            repo.open(CONTAINER_REPO_DB_PATH());
             ContainerRepoItem item(containerId, imgId, name,
                                    concat(contSpecConfig["process"]["args"]), now(),
                                    ContainerRepoItem::Status(CREATED, now()));

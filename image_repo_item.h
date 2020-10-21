@@ -17,7 +17,7 @@ using std::vector, std::string;
  */
 struct ImageRepoItem : public RepoItem {
     static vector<string> ATTR_TAG_LIST;
-    static const char SEP = ':';
+    static constexpr char SEP = ':';
 
     // address of registry, e.g. docker.io/library/
     string regAddr;

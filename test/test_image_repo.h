@@ -41,7 +41,7 @@ void test_img_repo() {
     };
     {
         ImageRepo repo;
-        repo.open(IMAGE_REPO_DB_PATH);
+        repo.open(IMAGE_REPO_DB_PATH());
         for (size_t i = 0; i < 3; i++)
             repo.addImg(imgRepoItems[i].imageID, imgRepoItems[i]);
         cerr << "-----OUTPUT OF ImageRepo >> STDOUT-----" << endl;
@@ -50,7 +50,7 @@ void test_img_repo() {
     {
         cerr << "-----TESTING READING FROM ImageRepo-----" << endl;
         ImageRepo repo;
-        repo.open(IMAGE_REPO_DB_PATH);
+        repo.open(IMAGE_REPO_DB_PATH());
         CHECK_AND_THROW(repo.getItem("3333").toDBString(),
                         string("reg.ali.io:name3:2.2.33:3333:1258:1"), "ImageRepo.getItem");
         CHECK_AND_THROW(repo.contains("2222"), true, "ImageRepo.contains");

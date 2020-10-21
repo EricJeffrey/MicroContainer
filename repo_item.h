@@ -12,4 +12,12 @@ public:
     virtual string toDBString() const = 0;
 };
 
+class StrRepoItem : public RepoItem {
+public:
+    string value;
+
+    StrRepoItem(const string &v) : value(v) {}
+    string toDBString() const { return value; }
+};
+
 #endif // REPO_ITEM_H

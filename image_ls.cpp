@@ -9,7 +9,7 @@
 void listImages() noexcept {
     try {
         ImageRepo repo;
-        repo.open(IMAGE_REPO_DB_PATH);
+        repo.open(IMAGE_REPO_DB_PATH());
         std::cout << repo;
         repo.close();
     } catch (const std::exception &e) {
