@@ -7,10 +7,11 @@
 
 using std::string;
 
-// all stored in here
-static constexpr char REPO_DIR_PATH[] = "/home/eric/coding/MicroContainer/build/";
+// constexpr make them initialized at compile-time
 
-static constexpr char REPO_DB_DIR_PATH[] = "/home/eric/coding/MicroContainer/build/db/";
+static constexpr char REPO_DIR_PATH[] = "/data/microc/build/";
+
+static constexpr char REPO_DB_DIR_PATH[] = "/data/microc/build/db/";
 static constexpr char IMGID_REPO_DB_NAME[] = "db_imgname2id";
 static constexpr char IMAGE_REPO_DB_NAME[] = "db_imagerepo";
 static constexpr char CONTAINER_REPO_DB_NAME[] = "db_containerrepo";
@@ -29,19 +30,33 @@ static constexpr char IMAGE_DIR_NAME[] = "images/";
 static constexpr char LAYER_FILE_DIR_NAME[] = "layers/";
 static constexpr char OVERLAY_DIR_NAME[] = "overlay/";
 static constexpr char CONTAINER_DIR_NAME[] = "containers/";
+static constexpr char SOCK_DIR_NAME[] = "socket/";
+static constexpr char EXIT_DIR_NAME[] = "exit/";
 
 inline static string IMAGE_DIR_PATH() { return string(REPO_DIR_PATH) + IMAGE_DIR_NAME; }
 inline static string LAYER_FILE_DIR_PATH() { return string(REPO_DIR_PATH) + LAYER_FILE_DIR_NAME; }
 inline static string OVERLAY_DIR_PATH() { return string(REPO_DIR_PATH) + OVERLAY_DIR_NAME; }
 inline static string CONTAINER_DIR_PATH() { return string(REPO_DIR_PATH) + CONTAINER_DIR_NAME; }
+inline static string SOCK_DIR_PATH() { return string(REPO_DIR_PATH) + SOCK_DIR_NAME; }
+inline static string EXIT_DIR_PATH() { return string(REPO_DIR_PATH) + EXIT_DIR_NAME; }
 
 static constexpr char CONTAINER_RT_PATH[] = "/usr/bin/crun";
 static constexpr char CONTAINER_RT_NAME[] = "crun";
 
+static constexpr char CONMON_PATH[] = "/usr/bin/conmon";
+static constexpr char CONMON_NAME[] = "conmon";
+
+static constexpr char USERDATA_DIR_NAME[] = "userdata/";
+static constexpr char CONTAINER_PID_FILENAME[] = "pidfile";
+static constexpr char CONMON_PID_FILENAME[] = "conmon.pid";
+static constexpr char CONMON_LOG_FILENAME[] = "conmon.log";
+static constexpr char RUNTIME_LOG_FILENAME[] = "oci.log";
+
 // registry address
-static constexpr char DEFAULT_REG_ADDR[] = "https://ejlzjv4p.mirror.aliyuncs.com";
-static constexpr char DEFAULT_REG_ADDR_ABBR[] = "ejlzjv4p.mirror.aliyuncs.com";
-// static constexpr char DEFAULT_REG_ADDR[] = "https://docker.mirrors.ustc.edu.cn";
+// static constexpr char DEFAULT_REG_ADDR[] = "https://ejlzjv4p.mirror.aliyuncs.com";
+// static constexpr char DEFAULT_REG_ADDR_ABBR[] = "ejlzjv4p.mirror.aliyuncs.com";
+static constexpr char DEFAULT_REG_ADDR[] = "https://docker.mirrors.ustc.edu.cn";
+static constexpr char DEFAULT_REG_ADDR_ABBR[] = "docker.mirrors.ustc.edu.cn";
 
 // read timeout when pulling image from registry
 static constexpr time_t READ_TIME_OUT_SEC = 30;

@@ -9,13 +9,13 @@
 using std::string;
 
 // error when making syscall
-struct SysError : protected std::exception {
+struct SysError : public std::exception {
     const int err;
     const string errMsg;
-    SysError(int err, const char *msg) : err(err), errMsg(msg) {}
-    SysError(int err, const string &msg) : err(err), errMsg(msg) {}
+    SysError(int err, const char *msg) : err(err), errMsg(string(msg) + ": " + strerror(err)) {}
+    SysError(int err, const string &msg) : err(err), errMsg(msg + ": " + strerror(err)) {}
 
-    string what() { return errMsg + ":" + strerror(err); }
+    const char *what() const noexcept override { return errMsg.c_str(); }
 };
 
 #endif // SYS_ERROR_H

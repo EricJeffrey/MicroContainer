@@ -113,7 +113,7 @@ bool createBridge() noexcept {
 
 std::tuple<bool, string, string> createContNet(const string &contId, const string &ip,
                                                int ipPreLen) noexcept {
-    const string nsName = NET_NS_PATH_PREFIX + contId.substr(0, NET_DEV_NS_NAME_SUFFIX_LEN);
+    const string nsName = NET_NS_NAME_PREFIX + contId.substr(0, NET_DEV_NS_NAME_SUFFIX_LEN);
     const string veth1 = "veth" + genRandomStr(NET_DEV_NS_NAME_SUFFIX_LEN);
     const string veth2 = "veth" + genRandomStr(NET_DEV_NS_NAME_SUFFIX_LEN);
     const string gateway = ip.substr(0, ip.find_last_of('.')) + ".1";
@@ -149,10 +149,10 @@ std::tuple<bool, string, string> createContNet(const string &contId, const strin
 }
 
 void cleanupContNet(const string &contId) noexcept {
-    const string nsName = NET_NS_PATH_PREFIX + contId.substr(0, NET_DEV_NS_NAME_SUFFIX_LEN);
+    const string nsName = NET_NS_NAME_PREFIX + contId.substr(0, NET_DEV_NS_NAME_SUFFIX_LEN);
     try {
-        fork_exec_wait(ipPath, {ipCmd, "netns", "del", nsName});
         fork_exec_wait("/usr/bin/umount", {"umount", "/run/netns/" + nsName});
+        fork_exec_wait(ipPath, {ipCmd, "netns", "del", nsName});
         fork_exec_wait("rm", {"/run/netns/" + nsName});
     } catch (const std::exception &e) {
         loggerInstance()->error("Cleanup container network failed:", e.what());

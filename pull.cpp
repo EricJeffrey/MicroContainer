@@ -47,6 +47,7 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
         if (std::filesystem::is_directory(OVERLAY_DIR_PATH() + blobSum.substr(7))) {
             std::cout << "\r" << blobCntK << "/" << blobSetSz << " " << blobSum.substr(7, 16)
                       << ": local" << std::endl;
+            ++blobCntK;
             continue;
         }
         usleep(800000);

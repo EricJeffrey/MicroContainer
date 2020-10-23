@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 typedef std::pair<bool, string> PairBoolStr;
+using nlohmann::json;
 
 // generate OCI-runtime config.json
 void generateSpecConf(const string &dirPath) {
@@ -85,15 +86,20 @@ void prepareContDirs(const string &id, const vector<string> &layers) {
 }
 
 // using default spec config and update `env, args, hostname, rootfs.path, netns`
-nlohmann::json mkContSpecConfig(const string &id, const nlohmann::json &imgContConf) {
-    nlohmann::json contSpecConfig = nlohmann::json::parse(DEFAULT_CONTAINER_CONF_SPEC);
+json mkContSpecConfig(const string &id, const json &imgContConf) {
+    json contSpecConfig = json::parse(DEFAULT_CONTAINER_CONF_SPEC);
     // env
     contSpecConfig["process"]["env"] = imgContConf["Env"];
     // args
-    nlohmann::json args = nlohmann::json::array();
+    json args = json::array();
     for (auto &&entry : imgContConf["Entrypoint"])
         args.push_back(entry);
-    for (auto &&cmd : imgContConf["Cmd"])
+    json cmds;
+    if (imgContConf["Cmd"].back().get<string>().substr(0, 3) == "CMD")
+        cmds = json::parse(imgContConf["Cmd"].back().get<string>().substr(4));
+    else
+        cmds = imgContConf["Cmd"];
+    for (auto &&cmd : cmds)
         args.push_back(cmd);
     contSpecConfig["process"]["args"] = args;
     // hostname
@@ -103,7 +109,8 @@ nlohmann::json mkContSpecConfig(const string &id, const nlohmann::json &imgContC
     // netns
     for (auto &&ns : contSpecConfig["linux"]["namespaces"]) {
         if (ns["type"].get<string>() == "network") {
-            ns["path"] = NET_NS_PATH_PREFIX + id.substr(0, NET_DEV_NS_NAME_SUFFIX_LEN);
+            ns["path"] = string(NET_NS_DIR_PATH) + NET_NS_NAME_PREFIX +
+                         id.substr(0, NET_DEV_NS_NAME_SUFFIX_LEN);
             break;
         }
     }

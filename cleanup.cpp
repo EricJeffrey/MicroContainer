@@ -9,15 +9,44 @@
 
 #include <sys/mount.h>
 
-void cleanup(const string &contID) noexcept {
-    if (umount((CONTAINER_DIR_PATH() + contID + "/merged").c_str()) == -1)
-        loggerInstance()->error("Call to umount failed:", strerror(errno));
-    cleanupContNet(contID);
+// todo return ip address on cleanup
+void cleanup(const string &cont) noexcept {
     // update repo db
-    {
-        ContainerRepo repo;
-        repo.open(CONTAINER_REPO_DB_PATH());
-        repo.updateStatus(contID, ContainerStatus::STOPPED, now());
+    try {
+        string id;
+        {
+            ContainerRepo repo;
+            repo.open(CONTAINER_REPO_DB_PATH());
+            if (repo.contains(cont))
+                id = cont;
+            else {
+                repo.foreach ([&id, &cont](int i, const string &k, const string &v) {
+                    auto item = ContainerRepoItem(v);
+                    if (item.containerID.substr(0, cont.size()) == cont || item.name == cont) {
+                        id = item.containerID;
+                        return true;
+                    }
+                    return false;
+                });
+            }
+            if (!id.empty())
+                repo.updateStatus(id, ContainerStatus::STOPPED, now());
+            repo.close();
+        }
+        if (id.empty()) {
+            loggerInstance()->info("Container", cont, "does not exist");
+            return;
+        }
+        //
+        if (umount((CONTAINER_DIR_PATH() + id + "/merged").c_str()) == -1) {
+            const int err = errno;
+            if (err != EINVAL && err != ENOENT)
+                loggerInstance()->sysError(err, "Call to umount failed:");
+        };
+        cleanupContNet(id);
+
+    } catch (std::exception &e) {
+        loggerInstance()->error("cleanup failed while updating repo:", e.what());
     }
 }
 

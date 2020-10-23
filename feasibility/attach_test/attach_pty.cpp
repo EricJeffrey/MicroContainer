@@ -1,9 +1,11 @@
 #include <arpa/inet.h>
 #include <pty.h>
+#include <signal.h>
 #include <sys/epoll.h>
 #include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/un.h>
 #include <termios.h>
 #include <unistd.h>
@@ -12,8 +14,8 @@
 #include <cstdlib>
 #include <cstring>
 
-const char sockPath[] = "/run/user/1000/libpod/tmp/socket/"
-                        "927b7a448cdfbd8fb42208d35c23c058b417e913f5d5fed215da705e58f54ff5/attach";
+const char sockPath[] =
+    "/run/libpod/socket/2af46bff8795f358e948d4e90a3d9edd4e342e48b4d61a942504e49cd3074a54/attach";
 int stdinDataFd = 0, contDataFd = 0;
 termios ttyOrigin;
 
@@ -59,7 +61,7 @@ int ttySetRaw(int fd, struct termios *prevTermios) {
         return -1;
     if (prevTermios != NULL)
         *prevTermios = t;
-    t.c_lflag &= ~(ICANON | ISIG | IEXTEN | ECHO);
+    t.c_lflag &= ~(ICANON | ECHONL | ISIG | IEXTEN | ECHO);
     /* Noncanonical mode, disable signals, extended
        input processing, and echoing */
 
@@ -68,9 +70,10 @@ int ttySetRaw(int fd, struct termios *prevTermios) {
        No 8th-bit stripping or parity error handling.
        Disable START/STOP output flow control. */
 
-    // t.c_oflag &= ~OPOST; /* Disable all output processing */
+    t.c_cflag &= ~(CSIZE | PARENB);
+    t.c_cflag &= ~(CS8);
 
-    t.c_oflag |= OPOST;
+    t.c_oflag &= ~OPOST; /* Disable all output processing */
 
     t.c_cc[VMIN] = 1;  /* Character-at-a-time input */
     t.c_cc[VTIME] = 0; /* with blocking */
@@ -98,8 +101,8 @@ poll
 int main(int argc, char const *argv[]) {
     winsize ws;
     { // set current tty
-        if (tcgetattr(STDIN_FILENO, &ttyOrigin) == -1)
-            errExit("tcgetattr");
+        // if (tcgetattr(STDIN_FILENO, &ttyOrigin) == -1)
+        //     errExit("tcgetattr");
         if (ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) == -1)
             errExit("ioctl-TIOCGWINSZ");
         // reset terminal at exit
@@ -110,6 +113,11 @@ int main(int argc, char const *argv[]) {
     }
     // connect to sock
     int sockFd = connect2UnSock(sockPath);
+
+    // send SIGWINCH to container ps 989584
+    // if (kill(1087597, SIGWINCH) == -1)
+    //     errExit("kill");
+
     // epoll
     int epFd = epoll_create1(0);
     if (epFd == -1)
@@ -125,7 +133,11 @@ int main(int argc, char const *argv[]) {
         add2epoll(epFd, STDIN_FILENO, EPOLLIN | EPOLLHUP);
         add2epoll(epFd, sockFd, EPOLLIN | EPOLLRDHUP | EPOLLHUP);
     }
-    auto stdinEvHandler = [&sockFd](epoll_event ev) {
+    // copy stdin to data
+    int icpfd = open("foo.txt", O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+    if (icpfd == -1)
+        errExit("open-foo");
+    auto stdinEvHandler = [&sockFd, &icpfd](epoll_event ev) {
         if (ev.events & EPOLLERR)
             errExit("EPOLLERR on STDIN_FILENO");
         char buf[BUFSIZ];
@@ -139,7 +151,10 @@ int main(int argc, char const *argv[]) {
                 fprintf(stderr, "\nbye\n");
                 exit(0);
             }
-            write(sockFd, buf, numRead);
+            if (write(sockFd, buf, numRead) != numRead)
+                errExit("write-sockfd");
+            if (write(icpfd, buf, numRead) != numRead)
+                errExit("write-icpfd");
         }
     };
     auto sockEvHandler = [&sockFd](epoll_event ev) {
@@ -176,6 +191,9 @@ int main(int argc, char const *argv[]) {
             }
         }
     }
+    close(sockFd);
+    close(icpfd);
+    close(epFd);
     return 0;
 }
 

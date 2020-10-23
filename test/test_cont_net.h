@@ -26,7 +26,7 @@ void test_container_net() {
     const string containerID = "slkdghoshglksadnglkasjssldk";
     const string ip = "10.66.1.43";
     const string gateway = ip.substr(0, ip.find_last_of('.')) + ".1";
-    const string netnsName = NET_NS_PATH_PREFIX + containerID.substr(0, 8);
+    const string netnsName = NET_NS_NAME_PREFIX + containerID.substr(0, 8);
 
     cerr << "-----TESTING CREATE CONTAINER NETWORK-----" << endl;
     auto [err, veth1, veth2] = createContNet(containerID, ip, 24);
@@ -40,7 +40,7 @@ void test_container_net() {
     anykey();
 
     cerr << "-----TESTING CLEANUP CONTAINER NETWORK-----" << endl;
-    cleanupContNet(containerID, {veth1, veth2});
+    cleanupContNet(containerID);
     cerr << "-----ip addr show-----" << endl;
     fork_exec_wait(ipPath, {ipCmd, "addr", "show"}, false);
 }

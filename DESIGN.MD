@@ -63,8 +63,6 @@ stop: 发送term信号，超时后发送kill
 cleanup: 清理已退出容器的挂载点、netns配置、iptable配置、虚拟网卡
 ```
 
-todo: 实现一个简易的conmon - micromon
-
 ----- 
 
 ## 详细功能描述
@@ -109,13 +107,20 @@ todo: 实现一个简易的conmon - micromon
 
 `start name/ID`，启动容器，表现为容器内进程执行，具体步骤:
 
+- 检查容器是否存在以及容器是否未运行
 - 创建netns
 - 配置netns内的路由表、网关、端口映射
+- 获取可用IP
 - 读取lower文件，挂载目录
-- 调用`microcmon`启动容器
+- 调用`conmon`启动容器
+  - 创建 `container-pidfile`, `conmon-pidfile`, `conmon-logfile`, `oci-logfile`
   - 配置容器退出后的清理程序 - [cleanup](#cleanup)
-  - 记录microcmon和容器进程的PID
+  - 记录`conmon`和容器进程的PID
 - 更新容器数据库
+
+与conmon同步：
+- conmon会通过`crun create`创建容器，但不会启动容器，因此需要在创建之后调用`crun start`启动容器
+- conmon通过从环境变量获得名为`_OCI_SYNCPIPE`的管道文件描述符，向父进程通知容器创建完成，格式为`{"data": pid}`
 
 ### run
 
@@ -131,7 +136,7 @@ todo: 实现一个简易的conmon - micromon
 
 ### cleanup
 
-`cleanup name/ID`，清理已退出容器的相关配置，清理挂载点、删除网络命名空间、删除虚拟网卡、删除路由表和端口映射，更新容器数据库。
+`cleanup name/ID`，清理容器的相关文件，包括conmon创建的文件(套接字和FIFO-attach, winsz, ctrl)，清理挂载点、删除网络命名空间、删除虚拟网卡，更新容器数据库。
 
 ----- 
 

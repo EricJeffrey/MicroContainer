@@ -23,7 +23,8 @@ static constexpr char ipCmd[] = "ip";
 static constexpr char iptablesPath[] = "/usr/sbin/iptables";
 static constexpr char iptablesName[] = "iptables";
 
-static constexpr char NET_NS_PATH_PREFIX[] = "microc-";
+static constexpr char NET_NS_NAME_PREFIX[] = "microc-";
+static constexpr char NET_NS_DIR_PATH[] = "/var/run/netns/";
 
 struct NoAvailIPError : public std::runtime_error {
     NoAvailIPError(const char *msg) : std::runtime_error(msg) {}

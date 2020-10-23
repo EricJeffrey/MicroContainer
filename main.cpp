@@ -2,27 +2,31 @@
 #if !defined(MICRO_CONTAINER_CPP)
 #define MICRO_CONTAINER_CPP
 
+#include "cleanup.h"
 #include "container_ls.h"
 #include "create.h"
 #include "image_ls.h"
 #include "lib/CLI11.hpp"
 #include "network.h"
 #include "pull.h"
+#include "start.h"
 
 #include <filesystem>
 
 using std::cout, std::endl;
+using std::make_shared, CLI::App, CLI::App_p;
 using std::filesystem::is_directory, std::filesystem::create_directories;
 
 // Things to do when first run: creating dir, init logger, create bridge
 void init() {
-    for (auto &&path : {IMAGE_DIR_PATH(), CONTAINER_DIR_PATH(), OVERLAY_DIR_PATH(),
-                        LAYER_FILE_DIR_PATH(), string(REPO_DB_DIR_PATH)})
+    createBridge();
+    for (auto &&path :
+         {IMAGE_DIR_PATH(), CONTAINER_DIR_PATH(), OVERLAY_DIR_PATH(), LAYER_FILE_DIR_PATH(),
+          SOCK_DIR_PATH(), EXIT_DIR_PATH(), string(REPO_DB_DIR_PATH)})
         if (!is_directory(path))
             create_directories(path);
     Logger::init(cout);
     loggerInstance()->setDebug(true);
-    createBridge();
 }
 
 int main(int argc, char const *argv[]) {
@@ -30,74 +34,90 @@ int main(int argc, char const *argv[]) {
         cout << "Please run with root account" << endl;
         return 0;
     }
-    using std::make_shared, CLI::App, CLI::App_p;
     try {
         init();
         {
-            // Option with name, description and value
-            struct OptAggr {
-                string name, desc, val;
-                OptAggr(string n, string d) : name(n), desc(d) {}
-            };
-            // Sub command with name and desc
-            struct SubCmdAggr {
-                string name, desc;
-                SubCmdAggr(string n, string d) : name(n), desc(d) {}
-            };
             App app{"Micro management tool for containers and images", "microc"};
             app.require_subcommand(1);
-            // container sub command
+            // sub command
             {
-                auto *containerSub = app.add_subcommand("container", "Manage container");
-                containerSub->require_subcommand(1);
-                // create & container create
+                // container
+                auto *contSub = app.add_subcommand("container", "Manage container");
+                contSub->require_subcommand(1);
+                // create
                 {
-                    SubCmdAggr subcCreat("create", "Create container");
-                    auto *createSub1 = app.add_subcommand(subcCreat.name, subcCreat.desc);
-                    OptAggr optName("name", "Name of the created container");
-                    OptAggr optImg("image", "Image to use, can be name:tag or id");
-                    auto createCb = [&optName, &optImg]() {
-                        createContainer(optImg.val, optName.val);
-                    };
-                    createSub1->add_option(optImg.name, optImg.val, optImg.desc)->required();
-                    createSub1->add_option(optName.name, optName.val, optName.desc)->required();
-                    createSub1->callback(createCb);
-
-                    auto *contCreateSub =
-                        containerSub->add_subcommand(subcCreat.name, subcCreat.desc);
-                    contCreateSub->add_option(optImg.name, optImg.val, optImg.desc)->required();
-                    contCreateSub->add_option(optName.name, optName.val, optName.desc)->required();
-                    contCreateSub->callback(createCb);
+                    auto *sub = app.add_subcommand("create", "Create a container");
+                    string val1, val2;
+                    sub->add_option("image", val1, "Image to use, can be name:tag or id")
+                        ->required();
+                    sub->add_option("name", val2, "Name of the created container")->required();
+                    sub->callback([&val1, &val2]() { createContainer(val1, val2); });
                 }
-                { // container ls
-                    auto *lsContSub = containerSub->add_subcommand("ls", "List containers");
+                // image
+                auto *imageSub = app.add_subcommand("image", "Manage image");
+                imageSub->require_subcommand(1);
+                // images
+                app.add_subcommand("images", "List images")->callback(listImages);
+                // pull
+                {
+                    string value;
+                    auto *pullSub1 = app.add_subcommand("pull", "Pull image from registry");
+                    pullSub1
+                        ->add_option("image", value,
+                                     "Image name(:tag) to pull, default tag is latest")
+                        ->required();
+                    pullSub1->callback([&value]() { pull(value); });
+                }
+                // start
+                {
+                    string value;
+                    auto *sub = app.add_subcommand("start", "Start a container");
+                    sub->add_option("container", value, "Container name or id")->required();
+                    sub->callback([&value]() { startContainer(value); });
+                }
+
+                // container cleanup
+                {
+                    string value;
+                    auto *sub = contSub->add_subcommand("cleanup", "Cleanup a stopped container");
+                    sub->add_option("container", value, "Container id")->required();
+                    sub->callback([&value]() { cleanup(value); });
+                }
+                // container create
+                {
+                    string val1, val2;
+                    auto *ssub = contSub->add_subcommand("create", "Create a container");
+                    ssub->add_option("image", val1, "Image to use, can be name:tag or id")
+                        ->required();
+                    ssub->add_option("name", val2, "Name of the created container")->required();
+                    ssub->callback([&val1, &val2]() { createContainer(val1, val2); });
+                }
+                // container ls
+                {
+                    auto *lsContSub = contSub->add_subcommand("ls", "List containers");
                     auto *lsAllFLag =
                         lsContSub->add_flag("-a", "List all containers, default only running");
                     lsContSub->callback([&lsAllFLag]() { listContainer(lsAllFLag->count() > 0); });
                 }
-            }
-            // image sub command
-            {
-                auto *imageSub = app.add_subcommand("image", "Manage image");
-                imageSub->require_subcommand(1);
-                // pull & image pull
+                // contaier start
                 {
-                    SubCmdAggr subcPull("pull", "Pull image from registry");
-                    OptAggr optName("image", "Image name(:tag) to pull, default tag is latest");
-                    auto pullCb = [&optName]() { pull(optName.val); };
-
-                    auto *pullSub1 = app.add_subcommand(subcPull.name, subcPull.desc);
-                    pullSub1->add_option(optName.name, optName.val, optName.desc)->required();
-                    pullSub1->callback(pullCb);
-
-                    auto *imgPullSub = imageSub->add_subcommand(subcPull.name, subcPull.desc);
-                    imgPullSub->add_option(optName.name, optName.val, optName.desc)->required();
-                    imgPullSub->callback(pullCb);
+                    string value;
+                    auto *sub = contSub->add_subcommand("start", "Start a container");
+                    sub->add_option("container", value, "Container name or id")->required();
+                    sub->callback([&value]() { startContainer(value); });
+                }
+                // image pull
+                {
+                    string value;
+                    auto *imgPullSub = imageSub->add_subcommand("pull", "Pull image from registry");
+                    imgPullSub
+                        ->add_option("image", value,
+                                     "Image name(:tag) to pull, default tag is latest")
+                        ->required();
+                    imgPullSub->callback([&value]() { pull(value); });
                 }
                 // image ls
-                {
-                    imageSub->add_subcommand("ls", "List images")->callback([]() { listImages(); });
-                }
+                { imageSub->add_subcommand("ls", "List images")->callback(listImages); }
             }
             CLI11_PARSE(app, argc, argv);
         }

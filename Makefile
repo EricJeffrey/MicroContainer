@@ -11,8 +11,9 @@ TESTTARGET=test.out
 main: main.o $(OBJS)
 	g++ $(CXXFLAGS) -o $(TARGET) $(LLIB) main.o $(OBJS)
 
-cleanup.o: cleanup.cpp cleanup.h config.h lib/json.hpp lib/logger.h \
- network.h repo.h db_error.h repo_item.h
+cleanup.o: cleanup.cpp cleanup.h config.h lib/json.hpp container_repo.h \
+ container_repo_item.h repo_item.h utils.h sys_error.h repo.h db_error.h \
+ lib/logger.h network.h
 
 container_ls.o: container_ls.cpp container_ls.h config.h lib/json.hpp \
  container_repo.h container_repo_item.h repo_item.h utils.h sys_error.h \
@@ -39,9 +40,9 @@ image_repo.o: image_repo.cpp image_repo.h config.h lib/json.hpp \
 image_repo_item.o: image_repo_item.cpp image_repo_item.h repo_item.h \
  utils.h sys_error.h
 
-main.o: main.cpp container_ls.h create.h image_ls.h lib/CLI11.hpp \
- network.h repo.h db_error.h repo_item.h pull.h config.h lib/json.hpp \
- lib/httplib.h lib/logger.h utils.h sys_error.h
+main.o: main.cpp cleanup.h container_ls.h create.h image_ls.h \
+ lib/CLI11.hpp network.h repo.h db_error.h repo_item.h pull.h config.h \
+ lib/json.hpp lib/httplib.h lib/logger.h utils.h sys_error.h start.h
 
 network.o: network.cpp config.h lib/json.hpp lib/logger.h network.h \
  repo.h db_error.h repo_item.h utils.h sys_error.h
