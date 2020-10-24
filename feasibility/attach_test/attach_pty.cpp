@@ -15,7 +15,7 @@
 #include <cstring>
 
 const char sockPath[] =
-    "/run/libpod/socket/2af46bff8795f358e948d4e90a3d9edd4e342e48b4d61a942504e49cd3074a54/attach";
+    "/run/libpod/socket/2a6b233aaf4ccfad82d4a851d685354b06312d8749dd150d37fca92db3a9a7a2/attach";
 int stdinDataFd = 0, contDataFd = 0;
 termios ttyOrigin;
 
@@ -82,21 +82,7 @@ int ttySetRaw(int fd, struct termios *prevTermios) {
     return 0;
 }
 
-/*
-获取当前终端属性
-设置终端raw
-设置atexit
-创建伪终端pair - master slave
-打开unix套接字
-poll
-    stdin数据转发到master
-    slave转发到unix套接字
-    unix套接字数据转发到slave
-    master数据写到stdout
-*/
-
 // ctrl+p is 0x10, ctrl+q is 0x11
-// FIXME 控制字符无法渲染，尚未找到解决方法
 // g++ -g -Wall -lutil --std=c++17 -o attach_pty.out attach_pty.cpp
 int main(int argc, char const *argv[]) {
     winsize ws;
@@ -141,7 +127,7 @@ int main(int argc, char const *argv[]) {
         if (ev.events & EPOLLERR)
             errExit("EPOLLERR on STDIN_FILENO");
         char buf[BUFSIZ];
-        size_t numRead = read(STDIN_FILENO, buf, BUFSIZ);
+        ssize_t numRead = read(STDIN_FILENO, buf, BUFSIZ);
         if (numRead < 0)
             errExit("read-stdin");
         else if (numRead == 0)
@@ -165,13 +151,26 @@ int main(int argc, char const *argv[]) {
             exit(1);
         } else {
             char buf[BUFSIZ];
-            size_t numRead = read(sockFd, buf, BUFSIZ);
+            ssize_t numRead = read(sockFd, buf, BUFSIZ);
             if (numRead < 0)
                 errExit("read-sock");
             else if (numRead == 0)
                 errExit("read EOF on sock");
-            else
-                write(STDOUT_FILENO, buf, numRead);
+            else {
+                // stdout
+                int fdToWrite = -1;
+                // !note: conmon use first byte to indicate stdout/stderr
+                if (buf[0] == 2)
+                    fdToWrite = STDOUT_FILENO;
+                else if (buf[0] == 3)
+                    fdToWrite = STDERR_FILENO;
+                else
+                    fprintf(stderr, "sock resp, unknow fd to write: %d\n", buf[0]);
+
+                if (fdToWrite != -1)
+                    if (int tmp = write(STDOUT_FILENO, buf + 1, numRead - 1); tmp != numRead - 1)
+                        fprintf(stderr, "write sock resp returned with value: %d\n", tmp);
+            }
         }
     };
     epoll_event eventList[100];

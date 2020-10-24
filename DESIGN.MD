@@ -128,7 +128,15 @@ cleanup: 清理已退出容器的挂载点、netns配置、iptable配置、虚�
 
 ### attach
 
-`attach name/ID`，附加到容器。获取容器unix套接字，创建伪终端，重定向IO到套接字。
+`attach name/ID`，附加到容器。获取容器unix套接字，重定向IO到套接字。`conmon`自动创建了名为`attach`的unix套接字，类型为`SOCK_SEQPACKET`，可借此实现。
+
+- 获取套接字
+- 连接到套接字
+- 设置终端为raw模式
+- 使用epoll监听套接字和标准输入的事件
+  - 将标准输入转发到套接字
+  - 将套接字的返回内容转发到终端
+    - 根据响应内容第一个字符判断stdout和stderr，2表示stdout，3表示stderr
 
 ### stop
 
