@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "cleanup.h"
 #include "config.h"
 #include "container_repo.h"
 #include "lib/logger.h"
@@ -207,7 +208,8 @@ void attach(const string &container) noexcept {
                     if (tmpEv.data.fd == sockFd) {
                         auto tmpres = sockEvHandler(sockFd, tmpEv);
                         if (tmpres != 1) {
-                            loggerInstance()->error("container sock closed");
+                            // container has stopped, cleanup here
+                            loggerInstance()->info("container sock closed");
                             online = false;
                             break;
                         }

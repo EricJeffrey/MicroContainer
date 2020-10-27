@@ -11,6 +11,7 @@
 #include "network.h"
 #include "pull.h"
 #include "start.h"
+#include "stop.h"
 
 #include <filesystem>
 
@@ -42,10 +43,16 @@ int main(int argc, char const *argv[]) {
             app.require_subcommand(1);
             // sub command
             {
+                // container subcommand
+                auto *containerSub = app.add_subcommand("container", "Manage container");
+                containerSub->require_subcommand(1);
+                // image subcommand
+                auto *imageSub = app.add_subcommand("image", "Manage image");
+                imageSub->require_subcommand(1);
+
                 // attach
                 {
-                    auto *sub =
-                        app.add_subcommand("attach", "Attach to a running container");
+                    auto *sub = app.add_subcommand("attach", "Attach to a running container");
                     string val1;
                     sub->add_option("container", val1, "name or id of the container to attach");
                     sub->callback([&val1]() { attach(val1); });
@@ -78,17 +85,20 @@ int main(int argc, char const *argv[]) {
                     sub->add_option("container", value, "Container name or id")->required();
                     sub->callback([&value]() { startContainer(value); });
                 }
-
-                // container subcommand
-                auto *contSub = app.add_subcommand("container", "Manage container");
-                contSub->require_subcommand(1);
+                // stop
+                {
+                    auto *sub = app.add_subcommand("stop", "Stop a running container");
+                    string val1;
+                    sub->add_option("container", val1, "name or id of the container to stop");
+                    sub->callback([&val1]() { stop(val1); });
+                }
 
                 // container attach
                 {
 
-                    auto *sub =
-                        contSub->add_subcommand("attach", "Attach to a running container, after "
-                                                          "attached, you can use ctrl+p to detach");
+                    auto *sub = containerSub->add_subcommand(
+                        "attach", "Attach to a running container, after "
+                                  "attached, you can use ctrl+p to detach");
                     string val1;
                     sub->add_option("container", val1, "name or id of the container to attach");
                     sub->callback([&val1]() { attach(val1); });
@@ -96,14 +106,15 @@ int main(int argc, char const *argv[]) {
                 // container cleanup
                 {
                     string value;
-                    auto *sub = contSub->add_subcommand("cleanup", "Cleanup a stopped container");
+                    auto *sub =
+                        containerSub->add_subcommand("cleanup", "Cleanup a stopped container");
                     sub->add_option("container", value, "Container id")->required();
                     sub->callback([&value]() { cleanup(value); });
                 }
                 // container create
                 {
                     string val1, val2;
-                    auto *ssub = contSub->add_subcommand("create", "Create a container");
+                    auto *ssub = containerSub->add_subcommand("create", "Create a container");
                     ssub->add_option("image", val1, "Image to use, can be name:tag or id")
                         ->required();
                     ssub->add_option("name", val2, "Name of the created container")->required();
@@ -111,7 +122,7 @@ int main(int argc, char const *argv[]) {
                 }
                 // container ls
                 {
-                    auto *lsContSub = contSub->add_subcommand("ls", "List containers");
+                    auto *lsContSub = containerSub->add_subcommand("ls", "List containers");
                     auto *lsAllFLag =
                         lsContSub->add_flag("-a", "List all containers, default only running");
                     lsContSub->callback([&lsAllFLag]() { listContainer(lsAllFLag->count() > 0); });
@@ -119,15 +130,17 @@ int main(int argc, char const *argv[]) {
                 // contaier start
                 {
                     string value;
-                    auto *sub = contSub->add_subcommand("start", "Start a container");
+                    auto *sub = containerSub->add_subcommand("start", "Start a container");
                     sub->add_option("container", value, "Container name or id")->required();
                     sub->callback([&value]() { startContainer(value); });
                 }
-
-                // image subcommand
-                auto *imageSub = app.add_subcommand("image", "Manage image");
-                imageSub->require_subcommand(1);
-
+                // container stop
+                {
+                    auto *sub = containerSub->add_subcommand("stop", "Stop a running container");
+                    string val1;
+                    sub->add_option("container", val1, "name or id of the container to stop");
+                    sub->callback([&val1]() { stop(val1); });
+                }
                 // image pull
                 {
                     string value;

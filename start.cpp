@@ -47,8 +47,6 @@ int mountOverlayFs(const string &dst, const string &lowers, const string &upperD
     return 0;
 }
 
-// todo remove files on stop, conmon-socket and attach
-// todo delete crun container on stop
 void prepareFiles(const string &contID) {
     const auto contDir = CONTAINER_DIR_PATH() + contID + "/";
     for (auto &&filename :
@@ -94,7 +92,6 @@ bool execConmon(vector<string> &args) {
     else if (num == 0)
         loggerInstance()->error("sync pipe read return 0");
     else {
-        loggerInstance()->debug("sync pipe:", buf);
         nlohmann::json j = nlohmann::json::parse(buf);
         // conmon will write "data" to it
         int containerPid = j["data"].get<int>();
@@ -142,11 +139,10 @@ void startContainer(const string &cont) noexcept {
                 return;
             }
         }
-        loggerInstance()->debug("container existence checked");
         string contID = contItem.containerID;
         // prepare log/pid files
         prepareFiles(contID);
-        loggerInstance()->debug("container file prepared");
+        // todo need to store ip address in repo
         // get an ip address for use
         string contIP;
         {
@@ -154,7 +150,6 @@ void startContainer(const string &cont) noexcept {
             repo.open(IPADDR_REPO_DB_PATH());
             contIP = repo.useOne();
         }
-        loggerInstance()->debug("container ip got:", contIP);
         // create netns
         {
             auto [err, veth1, veth2] = createContNet(contID, contIP, VETH_IP_PREFIX_LEN);
@@ -163,7 +158,6 @@ void startContainer(const string &cont) noexcept {
                 return;
             }
         }
-        loggerInstance()->debug("container network created");
         const string contDir = CONTAINER_DIR_PATH() + contID + "/";
         const string contUsrDataDir = contDir + "userdata/";
         // mount overlay filesystem
@@ -177,7 +171,6 @@ void startContainer(const string &cont) noexcept {
                              (std::istreambuf_iterator<char>()));
             mountOverlayFs(mergedDir, lowerDirs, upperDir, workDir);
         }
-        loggerInstance()->debug("container filesystem mounted");
         vector<string> args = {CONMON_NAME,
                                "-s",
                                "-t",
@@ -211,17 +204,20 @@ void startContainer(const string &cont) noexcept {
                                (contUsrDataDir + CONMON_PID_FILENAME),
                                "--exit-dir",
                                EXIT_DIR_PATH(),
+                               "--exit-delay",
+                               "1",
                                "--exit-command",
-                               "/home/eric/coding/MicroContainer/build/microc",
+                               // todo change it to a fixed path
+                               "/home/eric/coding/MicroContainer/microc",
+                               "--exit-command-arg",
+                               "container",
                                "--exit-command-arg",
                                "cleanup",
                                "--exit-command-arg",
                                contID};
         if (execConmon(args)) {
-            loggerInstance()->debug("conmon started");
             if (fork_exec_wait(CONTAINER_RT_PATH, {CONTAINER_RT_NAME, "start", contID}) != 0)
                 throw runtime_error("crun start failed");
-            loggerInstance()->debug("crun start done");
             { // update repo
                 ContainerRepo repo;
                 repo.open(CONTAINER_REPO_DB_PATH());

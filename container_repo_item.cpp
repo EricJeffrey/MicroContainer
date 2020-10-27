@@ -12,9 +12,9 @@ string ContainerRepoItem::Status::toString() const {
         case CREATED:
             return "CREATED";
         case RUNNING:
-            return "UP   SINCE" + timet2Str(time);
+            return "UP   SINCE " + timet2Str(time);
         case STOPPED:
-            return "EXITED  AT" + timet2Str(time);
+            return "STOPPED AT " + timet2Str(time);
         default:
             return "INVALID";
     }

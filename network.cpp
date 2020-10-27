@@ -170,7 +170,8 @@ string IpRepo::useOne() {
         used = bitset<ipaddrNum>(value);
     else if (!status.IsNotFound())
         throw DBError("Failed to read ip address repo:" + status.ToString());
-    // only check high/low 8 bit, may fail if VETH_IP_PREFIX_LEN not 16
+    // only check low 16 bit, may fail if VETH_IP_PREFIX_LEN not 16
+    string res;
     for (size_t addr = 0; addr < used.size(); addr++) {
         // cannot use .0.* or .255.* or .*.0 or .*.255
         if ((addr & 0xff) == 0 || (addr & 0xff) == 0xff)
@@ -179,13 +180,16 @@ string IpRepo::useOne() {
             continue;
         if (!used[addr]) {
             used.set(addr);
-            auto sta = db->Put(leveldb::WriteOptions(), IP_REPO_KEY, used.to_string());
-            if (!sta.ok())
-                throw DBError("Failed to update ip address repo:" + sta.ToString());
-            return string(VETH_IP_PREFIX) + "." + std::to_string(addr & 0xff) + "." +
-                   std::to_string((addr >> 8) & 0xff);
+            res = string(VETH_IP_PREFIX) + "." + std::to_string((addr >> 8) & 0xff) + "." +
+                  std::to_string(addr & 0xff);
+            break;
         }
     }
+    auto sta = db->Put(leveldb::WriteOptions(), IP_REPO_KEY, used.to_string());
+    if (!sta.ok())
+        throw DBError("Failed to update ip address repo:" + sta.ToString());
+    if (!res.empty())
+        return res;
     throw NoAvailIPError("No availiable ip in repo");
 }
 
