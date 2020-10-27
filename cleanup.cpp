@@ -15,29 +15,29 @@ void cleanup(const string &cont) noexcept {
     try {
         string id;
         {
-            ContainerRepo repo;
-            repo.open(CONTAINER_REPO_DB_PATH());
-            if (repo.contains(cont))
-                id = cont;
-            else {
-                repo.foreach ([&id, &cont](int i, const string &k, const string &v) {
-                    auto item = ContainerRepoItem(v);
-                    if (item.containerID.substr(0, cont.size()) == cont || item.name == cont) {
-                        id = item.containerID;
-                        return true;
-                    }
-                    return false;
-                });
+            ContainerRepoItem contItem;
+            if (auto targetItem = containerExist(cont); targetItem.has_value()) {
+                contItem = targetItem.value();
+            } else {
+                loggerInstance()->info("container", cont, "not found");
+                return;
             }
-            if (!id.empty())
-                repo.updateStatus(id, ContainerStatus::STOPPED, now());
-            repo.close();
+            if (contItem.status.contStatus == ContainerStatus::RUNNING) {
+                loggerInstance()->info("container is still running, please stop it first");
+                return;
+            } else if (contItem.status.contStatus == ContainerStatus::INVALID) {
+                loggerInstance()->info("invalid container status, you may need to recreate it");
+                return;
+            } else if (contItem.status.contStatus != ContainerStatus::STOPPED) {
+                // only need to cleanup stopped container
+                return;
+            }
+            id = contItem.containerID;
         }
         if (id.empty()) {
             loggerInstance()->info("Container", cont, "does not exist");
             return;
         }
-        //
         if (umount((CONTAINER_DIR_PATH() + id + "/merged").c_str()) == -1) {
             const int err = errno;
             if (err != EINVAL && err != ENOENT)

@@ -47,27 +47,6 @@ int mountOverlayFs(const string &dst, const string &lowers, const string &upperD
     return 0;
 }
 
-std::optional<ContainerRepoItem> containerExist(const string &cont) {
-    ContainerRepoItem contItem;
-    ContainerRepo repo;
-    repo.open(CONTAINER_REPO_DB_PATH());
-    if (repo.contains(cont)) {
-        return {repo.getItem(cont)};
-    } else {
-        bool got = false;
-        repo.foreach ([&cont, &contItem, &got](int i, const string &k, const string &v) {
-            ContainerRepoItem item(v);
-            if (item.name == cont || item.containerID.substr(0, cont.size()) == cont) {
-                contItem = item;
-                got = true;
-                return true;
-            }
-            return false;
-        });
-        return got ? std::optional(contItem) : std::nullopt;
-    }
-}
-
 // todo remove files on stop, conmon-socket and attach
 // todo delete crun container on stop
 void prepareFiles(const string &contID) {

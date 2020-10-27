@@ -2,6 +2,7 @@
 #define CONTAINER_REPO_CPP
 
 #include "container_repo.h"
+#include "config.h"
 
 #include <iomanip>
 #include <memory>
@@ -29,6 +30,26 @@ std::ostream &operator<<(std::ostream &out, const ContainerRepo &repo) {
     });
     lineupPrint(out, lines);
     return out;
+}
+
+std::optional<ContainerRepoItem> containerExist(const string &cont) {
+    ContainerRepoItem contItem;
+    ContainerRepo repo;
+    repo.open(CONTAINER_REPO_DB_PATH());
+    if (repo.contains(cont)) {
+        return {repo.getItem(cont)};
+    } else {
+        bool got = false;
+        repo.foreach ([&cont, &contItem, &got](int i, const string &k, const string &v) {
+            ContainerRepoItem item(v);
+            if (item.name == cont || item.containerID.substr(0, cont.size()) == cont) {
+                contItem = item;
+                return got = true;
+            }
+            return false;
+        });
+        return got ? std::optional(contItem) : std::nullopt;
+    }
 }
 
 #endif // CONTAINER_REPO_CPP

@@ -5,6 +5,7 @@
 #include "repo.h"
 
 #include <ostream>
+#include <optional>
 
 /**
  * @brief contianer database manager, call [open] to open db and do [add/remove/update]
@@ -19,5 +20,7 @@ struct ContainerRepo : public Repo {
 };
 
 std::ostream &operator<<(std::ostream &out, const ContainerRepo &repo);
+
+std::optional<ContainerRepoItem> containerExist(const string &cont) ;
 
 #endif // CONTAINER_REPO_H

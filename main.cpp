@@ -2,6 +2,7 @@
 #if !defined(MICRO_CONTAINER_CPP)
 #define MICRO_CONTAINER_CPP
 
+#include "attach.h"
 #include "cleanup.h"
 #include "container_ls.h"
 #include "create.h"
@@ -41,9 +42,14 @@ int main(int argc, char const *argv[]) {
             app.require_subcommand(1);
             // sub command
             {
-                // container
-                auto *contSub = app.add_subcommand("container", "Manage container");
-                contSub->require_subcommand(1);
+                // attach
+                {
+                    auto *sub =
+                        app.add_subcommand("attach", "Attach to a running container");
+                    string val1;
+                    sub->add_option("container", val1, "name or id of the container to attach");
+                    sub->callback([&val1]() { attach(val1); });
+                }
                 // create
                 {
                     auto *sub = app.add_subcommand("create", "Create a container");
@@ -53,11 +59,8 @@ int main(int argc, char const *argv[]) {
                     sub->add_option("name", val2, "Name of the created container")->required();
                     sub->callback([&val1, &val2]() { createContainer(val1, val2); });
                 }
-                // image
-                auto *imageSub = app.add_subcommand("image", "Manage image");
-                imageSub->require_subcommand(1);
                 // images
-                app.add_subcommand("images", "List images")->callback(listImages);
+                { app.add_subcommand("images", "List images")->callback(listImages); }
                 // pull
                 {
                     string value;
@@ -76,6 +79,20 @@ int main(int argc, char const *argv[]) {
                     sub->callback([&value]() { startContainer(value); });
                 }
 
+                // container subcommand
+                auto *contSub = app.add_subcommand("container", "Manage container");
+                contSub->require_subcommand(1);
+
+                // container attach
+                {
+
+                    auto *sub =
+                        contSub->add_subcommand("attach", "Attach to a running container, after "
+                                                          "attached, you can use ctrl+p to detach");
+                    string val1;
+                    sub->add_option("container", val1, "name or id of the container to attach");
+                    sub->callback([&val1]() { attach(val1); });
+                }
                 // container cleanup
                 {
                     string value;
@@ -106,6 +123,11 @@ int main(int argc, char const *argv[]) {
                     sub->add_option("container", value, "Container name or id")->required();
                     sub->callback([&value]() { startContainer(value); });
                 }
+
+                // image subcommand
+                auto *imageSub = app.add_subcommand("image", "Manage image");
+                imageSub->require_subcommand(1);
+
                 // image pull
                 {
                     string value;
