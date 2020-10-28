@@ -149,6 +149,11 @@ void createContainer(const string &imgName, const string &name) noexcept {
                                    ContainerRepoItem::Status(CREATED, now()));
             repo.add(containerId, item);
         }
+        {
+            ImageRepo repo;
+            repo.open(IMAGE_REPO_DB_PATH());
+            repo.updateUsedContNum(imgId, 1);
+        }
         std::cout << containerId << std::endl;
     } catch (const std::exception &e) {
         loggerInstance()->error("Create container failed:", e.what());

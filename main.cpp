@@ -5,6 +5,7 @@
 #include "attach.h"
 #include "cleanup.h"
 #include "container_ls.h"
+#include "container_rm.h"
 #include "create.h"
 #include "image_ls.h"
 #include "lib/CLI11.hpp"
@@ -130,6 +131,13 @@ int main(int argc, char const *argv[]) {
                     auto *lsAllFLag =
                         lsContSub->add_flag("-a", "List all containers, default only running");
                     lsContSub->callback([&lsAllFLag]() { listContainer(lsAllFLag->count() > 0); });
+                }
+                // container rm
+                {
+                    auto *sub = containerSub->add_subcommand("rm", "Remove a container");
+                    string val1;
+                    sub->add_option("container", "name or id of the container to remove");
+                    sub->callback([&val1]() { removeContainer(val1); });
                 }
                 // contaier start
                 {
