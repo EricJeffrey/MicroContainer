@@ -137,6 +137,7 @@ cleanup: 清理已退出容器的挂载点、netns配置、iptable配置、虚�
   - 将标准输入转发到套接字
   - 将套接字的返回内容转发到终端
     - 根据响应内容第一个字符判断stdout和stderr，2表示stdout，3表示stderr
+    - 由于conmon在附加并终止容器进程(attach容器并`exit`)时不会调用`cleanup`，故若套接字断开，则**停止并清理**容器
 
 ### stop
 
@@ -144,7 +145,7 @@ cleanup: 清理已退出容器的挂载点、netns配置、iptable配置、虚�
 
 ### cleanup
 
-`cleanup name/ID`，清理容器的相关文件，包括conmon创建的文件(套接字和FIFO-attach, winsz, ctrl)，清理挂载点、删除网络命名空间、删除虚拟网卡，更新容器数据库。
+`cleanup name/ID`，清理容器的相关文件，包括conmon创建的文件(套接字和FIFO-attach, winsz, shm, ctl)，清理挂载点、删除网络命名空间、删除虚拟网卡，删除运行时的容器，更新容器数据库。
 
 ----- 
 

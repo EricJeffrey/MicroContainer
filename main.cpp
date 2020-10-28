@@ -90,7 +90,10 @@ int main(int argc, char const *argv[]) {
                     auto *sub = app.add_subcommand("stop", "Stop a running container");
                     string val1;
                     sub->add_option("container", val1, "name or id of the container to stop");
-                    sub->callback([&val1]() { stop(val1); });
+                    sub->callback([&val1]() {
+                        stop(val1);
+                        cleanup(val1);
+                    });
                 }
 
                 // container attach
@@ -105,11 +108,12 @@ int main(int argc, char const *argv[]) {
                 }
                 // container cleanup
                 {
-                    string value;
+                    string value, val2;
                     auto *sub =
                         containerSub->add_subcommand("cleanup", "Cleanup a stopped container");
+                    auto *flag = sub->add_flag("-f", "stop container if running");
                     sub->add_option("container", value, "Container id")->required();
-                    sub->callback([&value]() { cleanup(value); });
+                    sub->callback([&value, &flag]() { cleanup(value, flag->count() > 0); });
                 }
                 // container create
                 {
@@ -139,7 +143,10 @@ int main(int argc, char const *argv[]) {
                     auto *sub = containerSub->add_subcommand("stop", "Stop a running container");
                     string val1;
                     sub->add_option("container", val1, "name or id of the container to stop");
-                    sub->callback([&val1]() { stop(val1); });
+                    sub->callback([&val1]() {
+                        stop(val1);
+                        cleanup(val1);
+                    });
                 }
                 // image pull
                 {

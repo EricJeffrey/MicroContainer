@@ -12,7 +12,7 @@
 #include <sys/mount.h>
 
 // todo return ip address on cleanup
-void cleanup(const string &cont) noexcept {
+void cleanup(const string &cont, bool force) noexcept {
     // update repo db
     try {
         string containerId;
@@ -24,10 +24,16 @@ void cleanup(const string &cont) noexcept {
                 loggerInstance()->info("container", cont, "not found");
                 return;
             }
-            // if it is running ,stop it first
+            // do not clean running container
             if (contItem.status.contStatus == ContainerStatus::RUNNING) {
-                loggerInstance()->info("container is running");
-                return;
+                if (force) {
+                    loggerInstance()->info("container running, stopping");
+                    // force stop container
+                    stop(contItem.containerID, true);
+                } else {
+                    loggerInstance()->info("container running");
+                    return;
+                }
             } else if (contItem.status.contStatus == ContainerStatus::INVALID) {
                 loggerInstance()->info("invalid container status, you may need to recreate it");
                 return;
@@ -37,6 +43,10 @@ void cleanup(const string &cont) noexcept {
             }
             containerId = contItem.containerID;
         }
+        // delete crun
+        if (int tmp = fork_exec_wait(CONTAINER_RT_PATH, {CONTAINER_RT_NAME, "delete", containerId});
+            tmp != 0)
+            loggerInstance()->warn("failed to cleanup runtime container, return value:", tmp);
         if (containerId.empty()) {
             loggerInstance()->info("Container", cont, "does not exist");
             return;
@@ -54,10 +64,6 @@ void cleanup(const string &cont) noexcept {
                 std::filesystem::remove(CONTAINER_DIR_PATH() + containerId + "/" + filename);
             }
         }
-        // delete crun
-        if (int tmp = fork_exec_wait(CONTAINER_RT_PATH, {CONTAINER_RT_NAME, "delete", containerId});
-            tmp != 0)
-            loggerInstance()->warn("failed to cleanup runtime container, return value:", tmp);
 
     } catch (std::exception &e) {
         loggerInstance()->error("cleanup failed:", e.what());

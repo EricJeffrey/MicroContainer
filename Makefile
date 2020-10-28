@@ -1,4 +1,4 @@
-CXXFLAGS=-g -Wall -Ilib -D CPPHTTPLIB_OPENSSL_SUPPORT --std=c++17
+CXXFLAGS=-g -Wall -D CPPHTTPLIB_OPENSSL_SUPPORT --std=c++17
 LLIB=-lssl -lz -lcrypto -lpthread -larchive -lleveldb
 
 OBJS=attach.o cleanup.o container_ls.o container_repo.o container_repo_item.o create.o extract.o image_ls.o\
@@ -12,7 +12,7 @@ main: main.o $(OBJS)
 	g++ $(CXXFLAGS) -o $(TARGET) $(LLIB) main.o $(OBJS)
 
 
-attach.o: attach.cpp config.h lib/json.hpp container_repo.h \
+attach.o: attach.cpp cleanup.h config.h lib/json.hpp container_repo.h \
  container_repo_item.h repo_item.h utils.h sys_error.h repo.h db_error.h \
  lib/logger.h
 

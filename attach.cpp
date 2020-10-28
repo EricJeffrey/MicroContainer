@@ -21,8 +21,9 @@
 
 termios ttyOrigin;
 void ttyReset() {
-    if (tcsetattr(STDIN_FILENO, TCSANOW, &ttyOrigin) == -1)
-        std::cerr << "failed to reset tty attribute: " << strerror(errno) << std::endl;
+    if (tcsetattr(STDIN_FILENO, TCSANOW, &ttyOrigin) == -1) {
+        loggerInstance()->sysError(errno, "failed to reset tty attribute");
+    }
 }
 /**
  * @brief set tty attr raw
@@ -141,11 +142,14 @@ int sockEvHandler(int sockFd, epoll_event ev) {
 
 void attach(const string &container) noexcept {
     int epFd = 0, sockFd = 0;
+    // close fd and reset tty
     auto clean = [&epFd, &sockFd]() {
         if (epFd != 0)
             close(epFd);
         if (sockFd != 0)
             close(sockFd);
+        ttyReset();
+        write(STDOUT_FILENO, "\n", 1);
     };
     try {
         string containerId;
@@ -195,7 +199,7 @@ void attach(const string &container) noexcept {
         }
 
         loggerInstance()->info("attached to container, use ctrl+p to detach");
-        bool online = true;
+        bool online = true, doCleanup = false;
         const int eventListSz = 10;
         epoll_event eventList[eventListSz];
         while (online) {
@@ -208,8 +212,9 @@ void attach(const string &container) noexcept {
                     if (tmpEv.data.fd == sockFd) {
                         auto tmpres = sockEvHandler(sockFd, tmpEv);
                         if (tmpres != 1) {
-                            // container has stopped, cleanup here
-                            loggerInstance()->info("container sock closed");
+                            // container has stopped
+                            loggerInstance()->info("connection closed, container has stopped");
+                            doCleanup = true;
                             online = false;
                             break;
                         }
@@ -233,6 +238,8 @@ void attach(const string &container) noexcept {
             }
         }
         clean();
+        if (doCleanup)
+            cleanup(containerId, true);
         return;
     } catch (const std::exception &e) {
         loggerInstance()->error("attach to container", container, "failed:", e.what());

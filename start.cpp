@@ -214,6 +214,8 @@ void startContainer(const string &cont) noexcept {
                                "--exit-command-arg",
                                "cleanup",
                                "--exit-command-arg",
+                               "-f",
+                               "--exit-command-arg",
                                contID};
         if (execConmon(args)) {
             if (fork_exec_wait(CONTAINER_RT_PATH, {CONTAINER_RT_NAME, "start", contID}) != 0)

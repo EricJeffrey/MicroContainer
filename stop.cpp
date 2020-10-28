@@ -11,8 +11,7 @@
 #include <istream>
 #include <iterator>
 
-// todo see whether conmon will call cleanup or not
-bool stop(const string &container) noexcept {
+bool stop(const string &container, bool ignoreKill) noexcept {
     try {
         string containerId;
         {
@@ -54,26 +53,31 @@ bool stop(const string &container) noexcept {
             repo.close();
         }
         // timer to see whether container process exited
-        {
-            if (kill(containerPid, SIGTERM) == -1) {
+        if (kill(containerPid, SIGTERM) == -1) {
+            if (!ignoreKill) {
                 loggerInstance()->sysError(errno, "stop(SIGTERM) container process failed");
                 return false;
             }
+        } else {
+            // container may not respond to SIGTERM, wait 5s
             int sec = 5;
             const string procPath = string("/proc/") + pidStr;
-            for (; sec > 0; sec--)
+            for (; sec > 1; sec--)
                 if (std::filesystem::is_directory(procPath))
                     sleep(1);
                 else
                     break;
-            if (sec == 0) {
+            if (sec == 1) {
+                // now kill it
                 if (kill(containerPid, SIGKILL) == -1) {
-                    loggerInstance()->sysError(errno, "stop(SIGKILL) container process failed");
-                    return false;
+                    if (!ignoreKill) {
+                        loggerInstance()->sysError(errno, "stop(SIGKILL) container process failed");
+                        return false;
+                    }
                 }
             }
         }
-        cleanup(containerId);
+
         loggerInstance()->info(containerId);
         return true;
     } catch (const std::exception &e) {

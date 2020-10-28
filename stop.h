@@ -5,7 +5,11 @@
 
 using std::string;
 
-// stop container, return true on success
-bool stop(const string &container) noexcept;
+/**
+ * @brief stop container
+ * @param ignoreKill ignore non-existence of container process if true
+ * @return true on success
+ */
+bool stop(const string &container, bool ignoreKill = false) noexcept;
 
 #endif // STOP_H
