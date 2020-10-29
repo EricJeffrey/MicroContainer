@@ -45,7 +45,7 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
     int blobSetSz = imageData.layerBlobSumSet.size(), blobCntK = 1;
     for (auto &&blobSum : imageData.layerBlobSumSet) {
         if (std::filesystem::is_directory(OVERLAY_DIR_PATH() + blobSum.substr(7))) {
-            std::cout << "\r" << blobCntK << "/" << blobSetSz << " " << blobSum.substr(7, 16)
+            std::cerr << "\r" << blobCntK << "/" << blobSetSz << " " << blobSum.substr(7, 16)
                       << ": local" << std::endl;
             ++blobCntK;
             continue;
@@ -73,7 +73,7 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
                 [&](const char *data, size_t dataLength) {
                     layerFStream.write(data, dataLength);
                     receivedSize += dataLength;
-                    std::cout << "\r" << blobCntK << "/" << blobSetSz << " "
+                    std::cerr << "\r" << blobCntK << "/" << blobSetSz << " "
                               << blobSum.substr(7, 16) << ": "
                               << receivedSize * 1.0 / totalSize * 100 << "%";
                     return true;
@@ -88,7 +88,7 @@ void fetchBlobs(httplib::Client &client, const ImageData &imageData, const strin
             throw runtime_error("exceed max retry times");
         }
         ++blobCntK;
-        std::cout << std::endl;
+        std::cerr << std::endl;
     }
 }
 
@@ -151,10 +151,9 @@ PairIntJson fetchV2Config(httplib::Client &client, const ImageData &imageData,
     return errorPair;
 }
 
+// Note: std:cerr is used non-buffer
 // No throw
 int pull(const string &imgName, const string &tag, const string &regAddr) noexcept {
-    using std::get, std::make_shared, std::shared_ptr;
-
     // check local existence
     loggerInstance()->info("Checking", imgName + ":" + tag, "locally");
     try {
@@ -226,7 +225,7 @@ int pull(const string &imgName, const string &tag, const string &regAddr) noexce
     // fetch blobs
     loggerInstance()->info("Fetching image layers");
     try {
-        std::cout << std::fixed << std::setprecision(2);
+        std::cerr << std::fixed << std::setprecision(2);
         fetchBlobs(client, imageData, imgName);
     } catch (const std::exception &e) {
         loggerInstance()->error("Fetch image layer failed:", e.what());
@@ -240,14 +239,14 @@ int pull(const string &imgName, const string &tag, const string &regAddr) noexce
         const string filePath = LAYER_FILE_DIR_PATH() + blobSum.substr(7) + ".tar.gz";
         const string dstDirPath = OVERLAY_DIR_PATH() + blobSum.substr(7) + "/";
         try {
-            std::cout << (blobCntK) << "/" << blobSetSz << " " << blobSum.substr(7, 16) << "...";
+            std::cerr << (blobCntK) << "/" << blobSetSz << " " << blobSum.substr(7, 16) << "...";
             auto extractRet = extract(filePath, dstDirPath);
             ++blobCntK;
             if (extractRet.first == -1) {
                 loggerInstance()->error("call to extract failed:", extractRet.second);
                 return -1;
             } else {
-                std::cout << "done\n";
+                std::cerr << "done\n";
                 if (extractRet.first == -2)
                     loggerInstance()->warn("extract returned with warn:", extractRet.second);
             }

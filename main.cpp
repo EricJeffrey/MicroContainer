@@ -8,6 +8,7 @@
 #include "container_rm.h"
 #include "create.h"
 #include "image_ls.h"
+#include "image_rm.h"
 #include "lib/CLI11.hpp"
 #include "network.h"
 #include "pull.h"
@@ -39,138 +40,125 @@ int main(int argc, char const *argv[]) {
     }
     try {
         init();
+
+        string val1, val2;
+        App app{"Micro management tool for containers and images", "microc"};
+        app.require_subcommand(1);
+        // sub command
+
+        // container subcommand
+        auto *containerSub = app.add_subcommand("container", "Manage container");
+        containerSub->require_subcommand(1);
+        // image subcommand
+        auto *imageSub = app.add_subcommand("image", "Manage image");
+        imageSub->require_subcommand(1);
+
+        // attach
         {
-            App app{"Micro management tool for containers and images", "microc"};
-            app.require_subcommand(1);
-            // sub command
-            {
-                // container subcommand
-                auto *containerSub = app.add_subcommand("container", "Manage container");
-                containerSub->require_subcommand(1);
-                // image subcommand
-                auto *imageSub = app.add_subcommand("image", "Manage image");
-                imageSub->require_subcommand(1);
-
-                // attach
-                {
-                    auto *sub = app.add_subcommand("attach", "Attach to a running container");
-                    string val1;
-                    sub->add_option("container", val1, "name or id of the container to attach");
-                    sub->callback([&val1]() { attach(val1); });
-                }
-                // create
-                {
-                    auto *sub = app.add_subcommand("create", "Create a container");
-                    string val1, val2;
-                    sub->add_option("image", val1, "Image to use, can be name:tag or id")
-                        ->required();
-                    sub->add_option("name", val2, "Name of the created container")->required();
-                    sub->callback([&val1, &val2]() { createContainer(val1, val2); });
-                }
-                // images
-                { app.add_subcommand("images", "List images")->callback(listImages); }
-                // pull
-                {
-                    string value;
-                    auto *pullSub1 = app.add_subcommand("pull", "Pull image from registry");
-                    pullSub1
-                        ->add_option("image", value,
-                                     "Image name(:tag) to pull, default tag is latest")
-                        ->required();
-                    pullSub1->callback([&value]() { pull(value); });
-                }
-                // start
-                {
-                    string value;
-                    auto *sub = app.add_subcommand("start", "Start a container");
-                    sub->add_option("container", value, "Container name or id")->required();
-                    sub->callback([&value]() { startContainer(value); });
-                }
-                // stop
-                {
-                    auto *sub = app.add_subcommand("stop", "Stop a running container");
-                    string val1;
-                    sub->add_option("container", val1, "name or id of the container to stop");
-                    sub->callback([&val1]() {
-                        stop(val1);
-                        cleanup(val1);
-                    });
-                }
-
-                // container attach
-                {
-
-                    auto *sub = containerSub->add_subcommand(
-                        "attach", "Attach to a running container, after "
-                                  "attached, you can use ctrl+p to detach");
-                    string val1;
-                    sub->add_option("container", val1, "name or id of the container to attach");
-                    sub->callback([&val1]() { attach(val1); });
-                }
-                // container cleanup
-                {
-                    string value, val2;
-                    auto *sub =
-                        containerSub->add_subcommand("cleanup", "Cleanup a stopped container");
-                    auto *flag = sub->add_flag("-f", "stop container if running");
-                    sub->add_option("container", value, "Container id")->required();
-                    sub->callback([&value, &flag]() { cleanup(value, flag->count() > 0); });
-                }
-                // container create
-                {
-                    string val1, val2;
-                    auto *ssub = containerSub->add_subcommand("create", "Create a container");
-                    ssub->add_option("image", val1, "Image to use, can be name:tag or id")
-                        ->required();
-                    ssub->add_option("name", val2, "Name of the created container")->required();
-                    ssub->callback([&val1, &val2]() { createContainer(val1, val2); });
-                }
-                // container ls
-                {
-                    auto *lsContSub = containerSub->add_subcommand("ls", "List containers");
-                    auto *lsAllFLag =
-                        lsContSub->add_flag("-a", "List all containers, default only running");
-                    lsContSub->callback([&lsAllFLag]() { listContainer(lsAllFLag->count() > 0); });
-                }
-                // container rm
-                {
-                    auto *sub = containerSub->add_subcommand("rm", "Remove a container");
-                    string val1;
-                    sub->add_option("container", "name or id of the container to remove");
-                    sub->callback([&val1]() { removeContainer(val1); });
-                }
-                // contaier start
-                {
-                    string value;
-                    auto *sub = containerSub->add_subcommand("start", "Start a container");
-                    sub->add_option("container", value, "Container name or id")->required();
-                    sub->callback([&value]() { startContainer(value); });
-                }
-                // container stop
-                {
-                    auto *sub = containerSub->add_subcommand("stop", "Stop a running container");
-                    string val1;
-                    sub->add_option("container", val1, "name or id of the container to stop");
-                    sub->callback([&val1]() {
-                        stop(val1);
-                        cleanup(val1);
-                    });
-                }
-                // image pull
-                {
-                    string value;
-                    auto *imgPullSub = imageSub->add_subcommand("pull", "Pull image from registry");
-                    imgPullSub
-                        ->add_option("image", value,
-                                     "Image name(:tag) to pull, default tag is latest")
-                        ->required();
-                    imgPullSub->callback([&value]() { pull(value); });
-                }
-                // image ls
-                { imageSub->add_subcommand("ls", "List images")->callback(listImages); }
-            }
-            CLI11_PARSE(app, argc, argv);
+            auto *sub = app.add_subcommand("attach", "Attach to a running container");
+            sub->add_option("container", val1, "name or id of the container to attach");
+            sub->callback([&val1]() { attach(val1); });
         }
+        // create
+        {
+            auto *sub = app.add_subcommand("create", "Create a container");
+            sub->add_option("image", val1, "Image to use, can be name:tag or id")->required();
+            sub->add_option("name", val2, "Name of the created container")->required();
+            sub->callback([&val1, &val2]() { createContainer(val1, val2); });
+        }
+        // images
+        { app.add_subcommand("images", "List images")->callback(listImages); }
+        // pull
+        {
+            auto *pullSub1 = app.add_subcommand("pull", "Pull image from registry");
+            pullSub1->add_option("image", val1, "Image name(:tag) to pull, default tag is latest")
+                ->required();
+            pullSub1->callback([&val1]() { pull(val1); });
+        }
+        // start
+        {
+            auto *sub = app.add_subcommand("start", "Start a container");
+            sub->add_option("container", val1, "Container name or id")->required();
+            sub->callback([&val1]() { startContainer(val1); });
+        }
+        // stop
+        {
+            auto *sub = app.add_subcommand("stop", "Stop a running container");
+            sub->add_option("container", val1, "name or id of the container to stop")->required();
+            sub->callback([&val1]() {
+                stop(val1);
+                cleanup(val1);
+            });
+        }
+
+        // container attach
+        {
+            auto *sub =
+                containerSub->add_subcommand("attach", "Attach to a running container, after "
+                                                       "attached, you can use ctrl+p to detach");
+            sub->add_option("container", val1, "name or id of the container to attach")->required();
+            sub->callback([&val1]() { attach(val1); });
+        }
+        // container cleanup
+        {
+            auto *sub = containerSub->add_subcommand("cleanup", "Cleanup a stopped container");
+            auto *flag = sub->add_flag("-f", "stop container if running");
+            sub->add_option("container", val1, "Container id")->required();
+            sub->callback([&val1, &flag]() { cleanup(val1, flag->count() > 0); });
+        }
+        // container create
+        {
+            auto *ssub = containerSub->add_subcommand("create", "Create a container");
+            ssub->add_option("image", val1, "Image to use, can be name:tag or id")->required();
+            ssub->add_option("name", val2, "Name of the created container")->required();
+            ssub->callback([&val1, &val2]() { createContainer(val1, val2); });
+        }
+        // container ls
+        {
+            auto *lsContSub = containerSub->add_subcommand("ls", "List containers");
+            auto *lsAllFLag =
+                lsContSub->add_flag("-a", "List all containers, default only running");
+            lsContSub->callback([&lsAllFLag]() { listContainer(lsAllFLag->count() > 0); });
+        }
+        // container rm
+        {
+            auto *sub = containerSub->add_subcommand("rm", "Remove a container");
+            sub->add_option("container", val1, "name or id of the container to remove")->required();
+            sub->callback([&val1]() { removeContainer(val1); });
+        }
+        // contaier start
+        {
+            auto *sub = containerSub->add_subcommand("start", "Start a container");
+            sub->add_option("container", val1, "Container name or id")->required();
+            sub->callback([&val1]() { startContainer(val1); });
+        }
+        // container stop
+        {
+            auto *sub = containerSub->add_subcommand("stop", "Stop a running container");
+            sub->add_option("container", val1, "name or id of the container to stop")->required();
+            sub->callback([&val1]() {
+                stop(val1);
+                cleanup(val1);
+            });
+        }
+        // image pull
+        {
+            auto *imgPullSub = imageSub->add_subcommand("pull", "Pull image from registry");
+            imgPullSub->add_option("image", val1, "Image name(:tag) to pull, default tag is latest")
+                ->required();
+            imgPullSub->callback([&val1]() { pull(val1); });
+        }
+        // image ls
+        { imageSub->add_subcommand("ls", "List images")->callback(listImages); }
+        // image rm
+        {
+            auto sub = imageSub->add_subcommand("rm", "Remove one image from local storage");
+            sub->add_option("image", val1, "name:tag (tag required) or id of the image to remove")
+                ->required();
+            sub->callback([&val1]() { removeImage(val1); });
+        }
+        CLI11_PARSE(app, argc, argv);
+
         return 0;
     } catch (const std::exception &e) {
         cout << "Microc start failed: " << e.what() << endl;

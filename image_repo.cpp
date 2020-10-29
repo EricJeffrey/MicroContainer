@@ -2,6 +2,7 @@
 #define IMAGE_REPO_CPP
 
 #include <iomanip>
+#include <optional>
 
 #include "image_repo.h"
 #include "utils.h"
@@ -55,6 +56,32 @@ std::ostream &operator<<(std::ostream &out, const ImageRepo &repo) {
     });
     lineupPrint(out, lines);
     return out;
+}
+
+std::optional<ImageRepoItem> imageExist(const string &image) {
+    ImageRepo repo;
+    repo.open(IMAGE_REPO_DB_PATH());
+    if (auto colonPos = image.find(':'); colonPos != string::npos) {
+        if (repo.contains(image.substr(0, colonPos), image.substr(colonPos + 1)))
+            return repo.getItem(image.substr(0, colonPos), image.substr(colonPos + 1));
+        return std::nullopt;
+    } else {
+        ImageRepoItem item;
+        bool possibleId = (image.size() == ID_ABBR_LENGTH || image.size() == ID_TOTAL_LEGNTH);
+        repo.foreach ([&possibleId, &item, &image](int i, const string &key, const string &val) {
+            ImageRepoItem tmpItem(val);
+            if ((image.size() == ID_TOTAL_LEGNTH && tmpItem.imageID == image) ||
+                (image.size() == ID_ABBR_LENGTH &&
+                 tmpItem.imageID.substr(0, ID_ABBR_LENGTH) == image)) {
+                item = tmpItem;
+                return true;
+            }
+            return false;
+        });
+        if (item.imageID.empty())
+            return std::nullopt;
+        return item;
+    }
 }
 
 #endif // IMAGE_REPO_CPP

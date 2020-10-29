@@ -2,6 +2,7 @@
 #define IMAGE_REPO_ITEM_CPP
 
 #include "image_repo_item.h"
+#include "config.h"
 #include "utils.h"
 
 using std::runtime_error;
@@ -32,7 +33,7 @@ ImageRepoItem::ImageRepoItem(const string &itemStr) {
 }
 
 vector<string> ImageRepoItem::toStringList() const {
-    return {regAddr, name, tag, imageID.substr(0, 12), timet2Str(created)};
+    return {regAddr, name, tag, imageID.substr(0, ID_ABBR_LENGTH), timet2Str(created)};
 }
 
 vector<string> ImageRepoItem::ATTR_TAG_LIST = {"REPOSITORY", "NAME", "TAG", "IMAGE ID", "CREATED"};

@@ -63,6 +63,9 @@ static constexpr time_t READ_TIME_OUT_SEC = 30;
 
 static constexpr int FETCH_MAX_RETRY_TIMES = 15;
 
+static constexpr int ID_TOTAL_LEGNTH = 64;
+static constexpr int ID_ABBR_LENGTH = 12;
+
 static constexpr char DEFAULT_CONTAINER_CONF_SPEC[] =
     "{\"ociVersion\":\"1.0.0\",\"process\":{\"terminal\":true,\"user\":{\"uid\":0,\"gid\":0},"
     "\"args\":[\"sh\"],\"env\":[\"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/"

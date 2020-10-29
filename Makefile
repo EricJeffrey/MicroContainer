@@ -1,9 +1,9 @@
 CXXFLAGS=-g -Wall -D CPPHTTPLIB_OPENSSL_SUPPORT --std=c++17
 LLIB=-lssl -lz -lcrypto -lpthread -larchive -lleveldb
 
-OBJS=attach.o cleanup.o container_ls.o container_repo.o container_repo_item.o container_rm.o\
- create.o extract.o image_ls.o image_repo.o image_repo_item.o network.o pull.o repo.o start.o\
- stop.o utils.o logger.o httplib.o
+OBJS=attach.o cleanup.o container_ls.o container_repo.o container_repo_item.o\
+ container_rm.o create.o extract.o image_ls.o image_repo.o image_repo_item.o\
+ image_rm.o network.o pull.o repo.o start.o stop.o utils.o logger.o httplib.o
 TARGET=microc
 TESTTARGET=test.out
 
@@ -30,7 +30,7 @@ container_repo.o: container_repo.cpp container_repo.h \
  config.h lib/json.hpp
 
 container_repo_item.o: container_repo_item.cpp container_repo_item.h \
- repo_item.h utils.h sys_error.h
+ repo_item.h utils.h sys_error.h config.h lib/json.hpp
 
 container_rm.o: container_rm.cpp container_rm.h config.h lib/json.hpp \
  container_repo.h container_repo_item.h repo_item.h utils.h sys_error.h \
@@ -49,10 +49,14 @@ image_repo.o: image_repo.cpp image_repo.h config.h lib/json.hpp \
  image_repo_item.h repo_item.h repo.h db_error.h utils.h sys_error.h
 
 image_repo_item.o: image_repo_item.cpp image_repo_item.h repo_item.h \
- utils.h sys_error.h
+ config.h lib/json.hpp utils.h sys_error.h
+
+image_rm.o: image_rm.cpp config.h lib/json.hpp container_repo.h \
+ container_repo_item.h repo_item.h utils.h sys_error.h repo.h db_error.h \
+ image_repo.h image_repo_item.h lib/logger.h
 
 main.o: main.cpp attach.h cleanup.h container_ls.h container_rm.h \
- create.h image_ls.h lib/CLI11.hpp network.h repo.h db_error.h \
+ create.h image_ls.h image_rm.h lib/CLI11.hpp network.h repo.h db_error.h \
  repo_item.h pull.h config.h lib/json.hpp lib/httplib.h lib/logger.h \
  utils.h sys_error.h start.h stop.h
 

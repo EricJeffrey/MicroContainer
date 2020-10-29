@@ -27,6 +27,7 @@ struct ImageRepoItem : public RepoItem {
     time_t created;
     int usedContNum; /* container number that is using this image */
 
+    ImageRepoItem(){}
     ImageRepoItem(string regAddr, string name, string tag, string id, time_t created, int useCnt)
         : regAddr(regAddr), name(name), tag(tag), imageID(id), created(created),
           usedContNum(useCnt) {}

@@ -2,6 +2,7 @@
 #define CONTAINER_REPO_ITEM_CPP
 
 #include "container_repo_item.h"
+#include "config.h"
 
 #include <stdexcept>
 
@@ -67,8 +68,12 @@ ContainerRepoItem::ContainerRepoItem(const string &itemStr) {
 }
 
 vector<string> ContainerRepoItem::toStringList() {
-    return {containerID.substr(0, 12), imageID.substr(0, 12), name, command,
-            timet2Str(created),        status.toString()};
+    return {containerID.substr(0, ID_ABBR_LENGTH),
+            imageID.substr(0, ID_ABBR_LENGTH),
+            name,
+            command,
+            timet2Str(created),
+            status.toString()};
 }
 
 string ContainerRepoItem::toDBString() const {

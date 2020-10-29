@@ -7,8 +7,8 @@
 #include "lib/json.hpp"
 #include "repo.h"
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 struct ImgNameIDRepoItem : public RepoItem {
     const string value;
@@ -68,5 +68,10 @@ inline nlohmann::json getImgContConfig(const string &imgId) {
 
 std::ostream &operator<<(std::ostream &o, const ImageRepo &repo);
 
+/**
+ * @brief check if a image exist
+ * @param image name:tag(tag required) or id of the iamge
+ */
+std::optional<ImageRepoItem> imageExist(const string &image);
 
 #endif // IMAGE_REPO_H

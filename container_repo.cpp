@@ -32,17 +32,17 @@ std::ostream &operator<<(std::ostream &out, const ContainerRepo &repo) {
     return out;
 }
 
-std::optional<ContainerRepoItem> containerExist(const string &cont) {
+std::optional<ContainerRepoItem> containerExist(const string &container) {
     ContainerRepoItem contItem;
     ContainerRepo repo;
     repo.open(CONTAINER_REPO_DB_PATH());
-    if (repo.contains(cont)) {
-        return {repo.getItem(cont)};
+    if (repo.contains(container)) {
+        return {repo.getItem(container)};
     } else {
         bool got = false;
-        repo.foreach ([&cont, &contItem, &got](int i, const string &k, const string &v) {
+        repo.foreach ([&container, &contItem, &got](int i, const string &k, const string &v) {
             ContainerRepoItem item(v);
-            if (item.name == cont || item.containerID.substr(0, cont.size()) == cont) {
+            if (item.name == container || item.containerID.substr(0, ID_ABBR_LENGTH) == container) {
                 contItem = item;
                 return got = true;
             }

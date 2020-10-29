@@ -103,7 +103,7 @@ json mkContSpecConfig(const string &id, const json &imgContConf) {
         args.push_back(cmd);
     contSpecConfig["process"]["args"] = args;
     // hostname
-    contSpecConfig["hostname"] = id.substr(0, 12);
+    contSpecConfig["hostname"] = id.substr(0, ID_ABBR_LENGTH);
     // rootfs.path
     contSpecConfig["root"]["path"] = CONTAINER_DIR_PATH() + id + "/merged";
     // netns
