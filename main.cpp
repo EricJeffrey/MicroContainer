@@ -12,6 +12,7 @@
 #include "lib/CLI11.hpp"
 #include "network.h"
 #include "pull.h"
+#include "run.h"
 #include "start.h"
 #include "stop.h"
 
@@ -42,6 +43,7 @@ int main(int argc, char const *argv[]) {
         init();
 
         string val1, val2;
+        vector<string> valList1;
         App app{"Micro management tool for containers and images", "microc"};
         app.require_subcommand(1);
         // sub command
@@ -74,6 +76,18 @@ int main(int argc, char const *argv[]) {
             pullSub1->add_option("image", val1, "Image name(:tag) to pull, default tag is latest")
                 ->required();
             pullSub1->callback([&val1]() { pull(val1); });
+        }
+        // run
+        {
+            auto *sub =
+                app.add_subcommand("run", "Runs a command in a new container from the given image");
+            sub->add_option("image", val1, "id or name of image to use")->required();
+            sub->add_option("-n", val2, "name of container to create");
+            auto *attachFlag = sub->add_flag("-a", "attach to the started container");
+            sub->add_option("args", valList1, "command and args to run in new container");
+            sub->callback([&val1, &val2, &valList1, &attachFlag]() {
+                runContainer(val1, valList1, val2, attachFlag->count() > 0);
+            });
         }
         // start
         {
@@ -125,6 +139,18 @@ int main(int argc, char const *argv[]) {
             auto *sub = containerSub->add_subcommand("rm", "Remove a container");
             sub->add_option("container", val1, "name or id of the container to remove")->required();
             sub->callback([&val1]() { removeContainer(val1); });
+        }
+        // container run
+        {
+            auto *sub = containerSub->add_subcommand(
+                "run", "Runs a command in a new container from the given image");
+            sub->add_option("image", val1, "id or name of image to use")->required();
+            sub->add_option("-n", val2, "name of container to create");
+            auto *attachFlag = sub->add_flag("-a", "attach to the started container");
+            sub->add_option("args", valList1, "command and args to run in new container");
+            sub->callback([&val1, &val2, &valList1, &attachFlag]() {
+                runContainer(val1, valList1, val2, attachFlag->count() > 0);
+            });
         }
         // contaier start
         {

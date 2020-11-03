@@ -85,7 +85,7 @@ bool execConmon(vector<string> &args) {
     // parent
     close(syncpfd[1]);
     bool res = false;
-    char buf[BUFSIZ];
+    char buf[BUFSIZ] = {};
     int num = read(syncpfd[0], buf, BUFSIZ);
     if (num < 0)
         throw SysError(errno, "read on sync pipe failed");
@@ -171,52 +171,18 @@ void startContainer(const string &cont) noexcept {
                              (std::istreambuf_iterator<char>()));
             mountOverlayFs(mergedDir, lowerDirs, upperDir, workDir);
         }
-        vector<string> args = {CONMON_NAME,
-                               "-s",
-                               "-t",
-                               "--api-version",
-                               "1",
-                               "-c",
-                               contID,
-                               "-u",
-                               contID,
-                               "-n",
-                               contItem.name,
-                               "-b",
-                               contDir,
-                               "-p",
-                               (contUsrDataDir + CONTAINER_PID_FILENAME),
-                               "--socket-dir-path",
-                               SOCK_DIR_PATH(),
-                               "-l",
-                               (contUsrDataDir + CONMON_LOG_FILENAME),
-                               "--log-level",
-                               "error",
-                               "-r",
-                               CONTAINER_RT_PATH,
-                               "--runtime-arg",
-                               "--log-format=json",
-                               "--runtime-arg",
-                               "--log",
-                               "--runtime-arg",
-                               (contUsrDataDir + RUNTIME_LOG_FILENAME),
-                               "--conmon-pidfile",
-                               (contUsrDataDir + CONMON_PID_FILENAME),
-                               "--exit-dir",
-                               EXIT_DIR_PATH(),
-                               "--exit-delay",
-                               "1",
-                               "--exit-command",
-                               // todo change it to a fixed path
-                               "/home/eric/coding/MicroContainer/microc",
-                               "--exit-command-arg",
-                               "container",
-                               "--exit-command-arg",
-                               "cleanup",
-                               "--exit-command-arg",
-                               "-f",
-                               "--exit-command-arg",
-                               contID};
+        vector<string> args = {
+            CONMON_NAME, "-s", "-t", "--api-version", "1", "-c", contID, "-u", contID, "-n",
+            contItem.name, "-b", contDir, "-p", (contUsrDataDir + CONTAINER_PID_FILENAME),
+            "--socket-dir-path", SOCK_DIR_PATH(), "-l", (contUsrDataDir + CONMON_LOG_FILENAME),
+            "--log-level", "error", "-r", CONTAINER_RT_PATH, "--runtime-arg", "--log-format=json",
+            "--runtime-arg", "--log", "--runtime-arg", (contUsrDataDir + RUNTIME_LOG_FILENAME),
+            "--conmon-pidfile", (contUsrDataDir + CONMON_PID_FILENAME), "--exit-dir",
+            EXIT_DIR_PATH(), "--exit-delay", "1", "--exit-command",
+            // todo change it to a fixed path
+            "/home/eric/coding/MicroContainer/microc", "--exit-command-arg", "container",
+            "--exit-command-arg", "cleanup", "--exit-command-arg", "-f", "--exit-command-arg",
+            contID};
         if (execConmon(args)) {
             if (fork_exec_wait(CONTAINER_RT_PATH, {CONTAINER_RT_NAME, "start", contID}) != 0)
                 throw runtime_error("crun start failed");

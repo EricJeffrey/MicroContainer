@@ -61,9 +61,10 @@ int fork_exec_wait(const string &filePath, const vector<string> &args, bool noSt
 string genRandomStr(int len) {
     string res(size_t(len), '0');
     static constexpr char alphanum[] = "0123456789"
-                                   "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                   "abcdefghijklmnopqrstuvwxyz";
-    static std::default_random_engine generator;
+                                       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                       "abcdefghijklmnopqrstuvwxyz";
+    std::random_device rd;
+    std::mt19937 generator(rd());
     static std::uniform_int_distribution<int> distribution(0, 61);
     for (int i = 0; i < len; ++i)
         res[i] = alphanum[distribution(generator)];

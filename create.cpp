@@ -86,21 +86,27 @@ void prepareContDirs(const string &id, const vector<string> &layers) {
 }
 
 // using default spec config and update `env, args, hostname, rootfs.path, netns`
-json mkContSpecConfig(const string &id, const json &imgContConf) {
+json mkContSpecConfig(const string &id, const json &imgContConf,
+                      const vector<string> &cmdList = {}) {
     json contSpecConfig = json::parse(DEFAULT_CONTAINER_CONF_SPEC);
     // env
     contSpecConfig["process"]["env"] = imgContConf["Env"];
     // args
     json args = json::array();
-    for (auto &&entry : imgContConf["Entrypoint"])
-        args.push_back(entry);
-    json cmds;
-    if (imgContConf["Cmd"].back().get<string>().substr(0, 3) == "CMD")
-        cmds = json::parse(imgContConf["Cmd"].back().get<string>().substr(4));
-    else
-        cmds = imgContConf["Cmd"];
-    for (auto &&cmd : cmds)
-        args.push_back(cmd);
+    if (!cmdList.empty()) {
+        for (auto &&cmd : cmdList)
+            args.push_back(cmd);
+    } else {
+        for (auto &&entry : imgContConf["Entrypoint"])
+            args.push_back(entry);
+        json cmds;
+        if (imgContConf["Cmd"].back().get<string>().substr(0, 3) == "CMD")
+            cmds = json::parse(imgContConf["Cmd"].back().get<string>().substr(4));
+        else
+            cmds = imgContConf["Cmd"];
+        for (auto &&cmd : cmds)
+            args.push_back(cmd);
+    }
     contSpecConfig["process"]["args"] = args;
     // hostname
     contSpecConfig["hostname"] = id.substr(0, ID_ABBR_LENGTH);
@@ -118,6 +124,11 @@ json mkContSpecConfig(const string &id, const json &imgContConf) {
 }
 
 void createContainer(const string &imgName, const string &name) noexcept {
+    createContainer(imgName, name, {});
+}
+
+void createContainer(const string &imgName, const string &name,
+                     const vector<string> &args) noexcept {
     try {
         const string containerId = sha256_string(name.c_str(), name.size());
         // check local existence
@@ -138,7 +149,7 @@ void createContainer(const string &imgName, const string &name) noexcept {
             }
             imgId = tmpRes.value();
         }
-        auto contSpecConfig = mkContSpecConfig(containerId, getImgContConfig(imgId));
+        auto contSpecConfig = mkContSpecConfig(containerId, getImgContConfig(imgId), args);
         prepareContDirs(containerId, getImgLayers(imgId));
         createFile(CONTAINER_DIR_PATH() + containerId + "/config.json", contSpecConfig.dump(4));
         {
@@ -154,7 +165,7 @@ void createContainer(const string &imgName, const string &name) noexcept {
             repo.open(IMAGE_REPO_DB_PATH());
             repo.updateUsedContNum(imgId, 1);
         }
-        std::cout << containerId << std::endl;
+        loggerInstance()->info("created", containerId);
     } catch (const std::exception &e) {
         loggerInstance()->error("Create container failed:", e.what());
     } catch (...) {

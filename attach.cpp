@@ -213,7 +213,7 @@ void attach(const string &container) noexcept {
                         auto tmpres = sockEvHandler(sockFd, tmpEv);
                         if (tmpres != 1) {
                             // container has stopped
-                            loggerInstance()->info("connection closed, container has stopped");
+                            loggerInstance()->info("connection closed");
                             doCleanup = true;
                             online = false;
                             break;

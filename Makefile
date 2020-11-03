@@ -3,7 +3,7 @@ LLIB=-lssl -lz -lcrypto -lpthread -larchive -lleveldb
 
 OBJS=attach.o cleanup.o container_ls.o container_repo.o container_repo_item.o\
  container_rm.o create.o extract.o image_ls.o image_repo.o image_repo_item.o\
- image_rm.o network.o pull.o repo.o start.o stop.o utils.o logger.o httplib.o
+ image_rm.o network.o pull.o repo.o run.o start.o stop.o utils.o logger.o httplib.o
 TARGET=microc
 TESTTARGET=test.out
 
@@ -58,7 +58,7 @@ image_rm.o: image_rm.cpp config.h lib/json.hpp container_repo.h \
 main.o: main.cpp attach.h cleanup.h container_ls.h container_rm.h \
  create.h image_ls.h image_rm.h lib/CLI11.hpp network.h repo.h db_error.h \
  repo_item.h pull.h config.h lib/json.hpp lib/httplib.h lib/logger.h \
- utils.h sys_error.h start.h stop.h
+ utils.h sys_error.h run.h start.h stop.h
 
 network.o: network.cpp config.h lib/json.hpp lib/logger.h network.h \
  repo.h db_error.h repo_item.h utils.h sys_error.h
@@ -69,6 +69,10 @@ pull.o: pull.cpp pull.h config.h lib/json.hpp lib/httplib.h lib/logger.h \
 
 repo.o: repo.cpp repo.h db_error.h repo_item.h
 
+run.o: run.cpp attach.h create.h image_repo.h config.h lib/json.hpp \
+ image_repo_item.h repo_item.h repo.h db_error.h lib/logger.h start.h \
+ utils.h sys_error.h
+
 start.o: start.cpp config.h lib/json.hpp container_repo.h \
  container_repo_item.h repo_item.h utils.h sys_error.h repo.h db_error.h \
  lib/logger.h network.h
@@ -78,6 +82,7 @@ stop.o: stop.cpp stop.h cleanup.h config.h lib/json.hpp container_repo.h \
  lib/logger.h
 
 utils.o: utils.cpp utils.h sys_error.h lib/logger.h
+
 
 logger.o: lib/logger.cpp lib/logger.h
 	g++ $(CXXFLAGS)  -c -o $@ lib/logger.cpp
