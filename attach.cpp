@@ -140,6 +140,7 @@ int sockEvHandler(int sockFd, epoll_event ev) {
     }
 };
 
+// todo check whether [resize] will fix new line bug
 void attach(const string &container) noexcept {
     int epFd = 0, sockFd = 0;
     // close fd and reset tty

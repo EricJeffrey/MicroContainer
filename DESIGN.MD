@@ -2,7 +2,7 @@
   - [功能需求](#功能需求)
   - [详细功能描述](#详细功能描述)
     - [pull](#pull)
-    - [build (todo)](#build-todo)
+    - [build](#build)
     - [image ls](#image-ls)
     - [image rm](#image-rm)
     - [create](#create)
@@ -75,9 +75,29 @@ cleanup: 清理已退出容器的挂载点、netns配置、iptable配置、虚�
 
 保存镜像: 保存镜像的 **清单文件manifest** 和 **配置文件config.json**，更新 **镜像数据库** 和 **layer数据库**。
 
-### build (todo)
+### build 
 
-`build [file] [-t name]`， 使用指定的 *Dockerfile* 创建镜像。
+`build [-f file] [-t name]`， 使用指定的 *Dockerfile* 创建镜像。支持的语法:
+- FROM \<image>:\<tag>
+- CMD ["executable","param1","param2"]
+- COPY \<src> \<dest> 可指定多个
+- ENV \<key>=\<value> 可指定多个
+
+`CMD`与`ENV`可以通过修改镜像的配置文件得到，`COPY`可以通过在镜像目录中创建新的`diff`目录实现。
+
+步骤: 
+- 获取文件，生成镜像名称、ID，创建镜像目录、diff目录
+- 读取基础镜像`FROM`，加载基础镜像配置文件中`container_config`的内容作为配置信息
+- 读取文件行并对每一行解析: 
+  - ENV 添加到配置信息中
+  - COPY 拷贝文件到镜像的diff目录中
+  - CMD 修改配置信息中CMD的内容，清空Entrypoint
+- 获得配置内容的sha256作为digest
+- 生成清单文件
+  - config - digest与size
+  - layers - 从基础镜像清单文件获得
+  - mediaType: application/vnd.docker.distribution.manifest.v2+json
+  - schemaVersion: 2
 
 ### image ls
 
@@ -89,7 +109,7 @@ cleanup: 清理已退出容器的挂载点、netns配置、iptable配置、虚�
 
 ### create
 
-`create imgId name`，使用镜像创建容器。获取镜像配置文件，生成容器OCI配置文件，生成lower目录文件，创建待挂载目录，更新容器数据库，更新镜像数据库。生成容器OCI配置文件时需要:
+`create imgId name`，使用镜像创建容器。获取镜像配置文件，生成容器OCI配置文件，生成lower目录文件，创建待挂载目录`merged, upper, lower, diff`，若镜像目录下有`diff`目录，则拷贝到对应容器目录，更新容器数据库，更新镜像数据库。生成容器OCI配置文件时需要:
 
 - 更新OCI配置netns的文件路径path
 - 更新命令、环境、hostname

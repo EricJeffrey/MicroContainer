@@ -11,7 +11,7 @@
 #include <filesystem>
 #include <sys/mount.h>
 
-// todo return ip address on cleanup
+// FIXME return ip address on cleanup
 void cleanup(const string &cont, bool force) noexcept {
     // update repo db
     try {

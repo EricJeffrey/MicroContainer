@@ -85,4 +85,7 @@ string nowISO();
 void lineupPrint(std::ostream &out, const vector<vector<string>> &lines, bool left = true,
                  int spacing = 2);
 
+// in-place trim with std::isspace
+static inline void trim(std::string &s);
+
 #endif // UTILS_H

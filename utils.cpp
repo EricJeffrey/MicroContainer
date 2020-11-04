@@ -4,9 +4,13 @@
 #include "utils.h"
 #include "lib/logger.h"
 
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+
+#include <algorithm>
+#include <locale>
 #include <random>
 
 #include <fcntl.h>
@@ -130,6 +134,25 @@ void lineupPrint(std::ostream &out, const vector<vector<string>> &lines, bool le
             out << (left ? std::left : std::right) << std::setw(widths[j] + spacing) << lines[i][j];
         out << std::endl;
     }
+}
+
+// trim from start (in place)
+static inline void ltrim(std::string &s) {
+    s.erase(s.begin(),
+            std::find_if(s.begin(), s.end(), [](unsigned char ch) { return !std::isspace(ch); }));
+}
+
+// trim from end (in place)
+static inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) { return !std::isspace(ch); })
+                .base(),
+            s.end());
+}
+
+// trim from both ends (in place)
+static inline void trim(std::string &s) {
+    ltrim(s);
+    rtrim(s);
 }
 
 #endif // UTILS_CPP

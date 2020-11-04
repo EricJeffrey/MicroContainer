@@ -34,7 +34,7 @@ void removeImage(const string &image) noexcept {
             repo.open(IMAGE_REPO_DB_PATH());
             repo.removeImg(imageId);
         }
-        // todo should remove unused layers either
+        // FIXME should remove unused layers either
     } catch (const std::exception &e) {
         loggerInstance()->error("failed to remove image:", e.what());
     } catch (...) {

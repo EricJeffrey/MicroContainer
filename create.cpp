@@ -9,6 +9,7 @@
 #include "network.h"
 #include "utils.h"
 
+#include <filesystem>
 #include <iostream>
 
 #include <sys/stat.h>
@@ -58,13 +59,15 @@ vector<string> getImgLayers(const string &imgId) {
 }
 
 // make id/[merged, work, diff], id/lower
-void prepareContDirs(const string &id, const vector<string> &layers) {
+void prepareContDirs(const string &id, const string &imageId) {
+    const vector<string> layers = getImgLayers(imageId);
     if (mkdir((CONTAINER_DIR_PATH() + id).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1) {
         loggerInstance()->sysError(errno, "Call to mkdir:", CONTAINER_DIR_PATH() + id, "failed");
         throw runtime_error("call to mkdir failed");
     }
     // make dirs
-    vector<string> dirNames({"/merged", "/work", "/diff", "/userdata"});
+    constexpr char diffDir[] = "/diff";
+    vector<string> dirNames({"/merged", "/work", diffDir, "/userdata"});
     for (auto &&name : dirNames) {
         if (mkdir((CONTAINER_DIR_PATH() + id + name).c_str(),
                   S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) == -1) {
@@ -72,6 +75,12 @@ void prepareContDirs(const string &id, const vector<string> &layers) {
                                        "failed");
             throw runtime_error("call to mkdir failed");
         }
+    }
+    // copy diff of image (if has) to container
+    if (std::filesystem::exists(IMAGE_DIR_PATH() + imageId + diffDir)) {
+        std::filesystem::copy(IMAGE_DIR_PATH() + imageId + diffDir,
+                              CONTAINER_DIR_PATH() + id + diffDir,
+                              std::filesystem::copy_options::recursive);
     }
     // make lower file
     ofstream lowerOFS(CONTAINER_DIR_PATH() + id + "/lower");
@@ -150,7 +159,7 @@ void createContainer(const string &imgName, const string &name,
             imgId = tmpRes.value();
         }
         auto contSpecConfig = mkContSpecConfig(containerId, getImgContConfig(imgId), args);
-        prepareContDirs(containerId, getImgLayers(imgId));
+        prepareContDirs(containerId, imgId);
         createFile(CONTAINER_DIR_PATH() + containerId + "/config.json", contSpecConfig.dump(4));
         {
             ContainerRepo repo;

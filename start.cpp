@@ -142,7 +142,7 @@ void startContainer(const string &cont) noexcept {
         string contID = contItem.containerID;
         // prepare log/pid files
         prepareFiles(contID);
-        // todo need to store ip address in repo
+        // FIXME need to store ip address in repo
         // get an ip address for use
         string contIP;
         {
