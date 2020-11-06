@@ -2,7 +2,7 @@ CXXFLAGS=-g -Wall -D CPPHTTPLIB_OPENSSL_SUPPORT --std=c++17
 LLIB=-lssl -lz -lcrypto -lpthread -larchive -lleveldb
 
 OBJS=attach.o cleanup.o container_ls.o container_repo.o container_repo_item.o\
- container_rm.o create.o extract.o image_ls.o image_repo.o image_repo_item.o\
+ container_rm.o create.o extract.o image_build.o image_ls.o image_repo.o image_repo_item.o\
  image_rm.o network.o pull.o repo.o run.o start.o stop.o utils.o logger.o httplib.o
 TARGET=microc
 TESTTARGET=test.out
@@ -42,6 +42,10 @@ create.o: create.cpp create.h config.h lib/json.hpp container_repo.h \
 
 extract.o: extract.cpp extract.h
 
+image_build.o: image_build.cpp image_build.h image_repo.h config.h \
+ lib/json.hpp image_repo_item.h repo_item.h repo.h db_error.h \
+ lib/logger.h utils.h sys_error.h
+
 image_ls.o: image_ls.cpp image_repo.h config.h lib/json.hpp \
  image_repo_item.h repo_item.h repo.h db_error.h lib/logger.h
 
@@ -56,9 +60,9 @@ image_rm.o: image_rm.cpp config.h lib/json.hpp container_repo.h \
  image_repo.h image_repo_item.h lib/logger.h
 
 main.o: main.cpp attach.h cleanup.h container_ls.h container_rm.h \
- create.h image_ls.h image_rm.h lib/CLI11.hpp network.h repo.h db_error.h \
- repo_item.h pull.h config.h lib/json.hpp lib/httplib.h lib/logger.h \
- utils.h sys_error.h run.h start.h stop.h
+ create.h image_build.h image_ls.h image_rm.h lib/CLI11.hpp network.h \
+ repo.h db_error.h repo_item.h pull.h config.h lib/json.hpp lib/httplib.h \
+ lib/logger.h utils.h sys_error.h run.h start.h stop.h
 
 network.o: network.cpp config.h lib/json.hpp lib/logger.h network.h \
  repo.h db_error.h repo_item.h utils.h sys_error.h

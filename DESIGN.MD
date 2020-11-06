@@ -98,6 +98,7 @@ cleanup: 清理已退出容器的挂载点、netns配置、iptable配置、虚�
   - layers - 从基础镜像清单文件获得
   - mediaType: application/vnd.docker.distribution.manifest.v2+json
   - schemaVersion: 2
+- 更新镜像数据库
 
 ### image ls
 

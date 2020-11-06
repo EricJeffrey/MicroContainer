@@ -1,6 +1,7 @@
 #if !defined(UTILS_H)
 #define UTILS_H
 
+#include <algorithm>
 #include <chrono>
 #include <exception>
 #include <iomanip>
@@ -85,7 +86,23 @@ string nowISO();
 void lineupPrint(std::ostream &out, const vector<vector<string>> &lines, bool left = true,
                  int spacing = 2);
 
-// in-place trim with std::isspace
-static inline void trim(std::string &s);
+// trim from start (in place)
+inline void ltrim(std::string &s) {
+    s.erase(s.begin(),
+            std::find_if(s.begin(), s.end(), [](unsigned char ch) { return !std::isspace(ch); }));
+}
+
+// trim from end (in place)
+inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) { return !std::isspace(ch); })
+                .base(),
+            s.end());
+}
+
+// trim from both ends (in place)
+inline void trim(std::string &s) {
+    ltrim(s);
+    rtrim(s);
+}
 
 #endif // UTILS_H

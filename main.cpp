@@ -7,6 +7,7 @@
 #include "container_ls.h"
 #include "container_rm.h"
 #include "create.h"
+#include "image_build.h"
 #include "image_ls.h"
 #include "image_rm.h"
 #include "lib/CLI11.hpp"
@@ -60,6 +61,13 @@ int main(int argc, char const *argv[]) {
             auto *sub = app.add_subcommand("attach", "Attach to a running container");
             sub->add_option("container", val1, "name or id of the container to attach");
             sub->callback([&val1]() { attach(val1); });
+        }
+        // build
+        {
+            auto *sub = app.add_subcommand("build", "Build image from Dockerfile");
+            sub->add_option("file", val1, "path of file to use")->required();
+            sub->add_option("-n", val2, "name of image to create");
+            sub->callback([&val1, &val2]() { buildImage(val1, val2); });
         }
         // create
         {
@@ -167,6 +175,15 @@ int main(int argc, char const *argv[]) {
                 cleanup(val1);
             });
         }
+        // image build
+        {
+            auto *sub = imageSub->add_subcommand("build", "Build image from Dockerfile");
+            sub->add_option("file", val1, "path of file to use")->required();
+            sub->add_option("-n", val2, "name of image to create");
+            sub->callback([&val1, &val2]() { buildImage(val1, val2); });
+        }
+        // image ls
+        { imageSub->add_subcommand("ls", "List images")->callback(listImages); }
         // image pull
         {
             auto *imgPullSub = imageSub->add_subcommand("pull", "Pull image from registry");
@@ -174,8 +191,6 @@ int main(int argc, char const *argv[]) {
                 ->required();
             imgPullSub->callback([&val1]() { pull(val1); });
         }
-        // image ls
-        { imageSub->add_subcommand("ls", "List images")->callback(listImages); }
         // image rm
         {
             auto sub = imageSub->add_subcommand("rm", "Remove one image from local storage");

@@ -32,7 +32,7 @@ void ImageRepo::removeImg(const string &id) {
     Repo::remove(id);
     ImgNameIDRepo idRepo;
     idRepo.open(IMG_ID_REPO_DB_PATH());
-    idRepo.remove(id);
+    idRepo.removeItem(id);
 }
 
 bool ImageRepo::contains(const string &name, const string &tag) {
