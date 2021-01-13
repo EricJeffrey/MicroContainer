@@ -43,7 +43,7 @@ inline static string EXIT_DIR_PATH() { return string(REPO_DIR_PATH) + EXIT_DIR_N
 static constexpr char CONTAINER_RT_PATH[] = "/usr/bin/crun";
 static constexpr char CONTAINER_RT_NAME[] = "crun";
 
-static constexpr char CONMON_PATH[] = "/usr/bin/conmon";
+static constexpr char CONMON_PATH[] = "/usr/libexec/podman/conmon";
 static constexpr char CONMON_NAME[] = "conmon";
 
 static constexpr char USERDATA_DIR_NAME[] = "userdata/";

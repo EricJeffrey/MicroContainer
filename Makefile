@@ -10,7 +10,7 @@ TESTTARGET=test.out
 .PHONY: main clean clean-build test
 
 main: main.o $(OBJS)
-	g++ $(CXXFLAGS) -o $(TARGET) $(LLIB) main.o $(OBJS)
+	g++ $(CXXFLAGS) -o $(TARGET) main.o $(OBJS) $(LLIB)
 
 
 attach.o: attach.cpp cleanup.h config.h lib/json.hpp container_repo.h \

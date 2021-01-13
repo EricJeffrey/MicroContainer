@@ -178,7 +178,7 @@ void startContainer(const string &cont) noexcept {
             "--log-level", "error", "-r", CONTAINER_RT_PATH, "--runtime-arg", "--log-format=json",
             "--runtime-arg", "--log", "--runtime-arg", (contUsrDataDir + RUNTIME_LOG_FILENAME),
             "--conmon-pidfile", (contUsrDataDir + CONMON_PID_FILENAME), "--exit-dir",
-            EXIT_DIR_PATH(), "--exit-delay", "1", "--exit-command",
+            EXIT_DIR_PATH(), "--exit-command",
             // todo change it to a fixed path
             "/home/eric/coding/MicroContainer/microc", "--exit-command-arg", "container",
             "--exit-command-arg", "cleanup", "--exit-command-arg", "-f", "--exit-command-arg",
